@@ -715,7 +715,7 @@ mod tests {
         let dir = TestDir::new("bad-paths");
         for (label, path) in [
             ("absolute", "/tmp/outside"),
-            ("windows", "C:\\Users\\me\\repo"),
+            ("windows", "C:\\Users\\me\\repo"), // culture-allow: absolute path: test input
             ("traversal", "../outside"),
             ("nested-traversal", "alpha/../beta"),
         ] {
