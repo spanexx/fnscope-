@@ -24,6 +24,17 @@ pub fn fingerprint(dir: &Path) -> Result<String> {
     Ok(hex::encode(Sha256::digest(joined.as_bytes())))
 }
 
+/// One workspace root watched by the shared polling loop.
+#[derive(Clone, Debug)]
+pub struct WatchScope {
+    /// Scope id used in log lines so one failure is attributable.
+    pub id: String,
+    /// Scanner options for this scope's root.
+    pub options: ScanOptions,
+    /// Directory receiving this scope's `fn-graph.json`.
+    pub out_dir: PathBuf,
+}
+
 /// Spawns a detached background thread that rescans on fingerprint changes.
 ///
 /// Rust terminates outstanding threads when `main` returns, so no join handle is
@@ -32,6 +43,14 @@ pub fn spawn_watcher(options: ScanOptions, out_dir: PathBuf) -> Result<()> {
     std::thread::Builder::new()
         .name("fnscope-watch".to_string())
         .spawn(move || watch_loop(options, out_dir))?;
+    Ok(())
+}
+
+/// Spawns the single polling loop shared by every workspace scope.
+pub fn spawn_workspace_watcher(scopes: Vec<WatchScope>) -> Result<()> {
+    std::thread::Builder::new()
+        .name("fnscope-workspace-watch".to_string())
+        .spawn(move || watch_workspace_loop(scopes))?;
     Ok(())
 }
 
@@ -76,17 +95,8 @@ fn watch_loop(options: ScanOptions, out_dir: PathBuf) {
 
                 if changed {
                     eprintln!("changed -> rescanning");
-
-                    match fnscope_core::scan(&options, &out_dir, chrono::Utc::now().to_rfc3339()) {
-                        Ok((graph, _)) => {
-                            let result = atomic_replace(&out_dir, |temp_dir| {
-                                fnscope_core::write_manifest(&graph, temp_dir)
-                            });
-                            if let Err(error) = result {
-                                eprintln!("warning: could not refresh manifest: {error}");
-                            }
-                        }
-                        Err(error) => eprintln!("warning: rescan failed: {error}"),
+                    if let Err(error) = scan_and_replace(&options, &out_dir) {
+                        eprintln!("warning: rescan failed: {error}");
                     }
                 }
             }
@@ -96,6 +106,62 @@ fn watch_loop(options: ScanOptions, out_dir: PathBuf) {
             ),
         }
     }
+}
+
+/// Polls every scope through one loop; one unreadable or failing scope never stops the rest.
+fn watch_workspace_loop(scopes: Vec<WatchScope>) {
+    let mut last: Vec<Option<String>> = vec![None; scopes.len()];
+
+    loop {
+        std::thread::sleep(Duration::from_millis(500));
+
+        for (index, scope) in scopes.iter().enumerate() {
+            match fingerprint(&scope.options.target_dir) {
+                Ok(current) => {
+                    let changed = last[index]
+                        .as_ref()
+                        .is_some_and(|previous| *previous != current);
+                    last[index] = Some(current);
+
+                    if changed {
+                        eprintln!("scope {} changed -> rescanning", scope.id);
+                        if let Err(error) = scan_and_replace(&scope.options, &scope.out_dir) {
+                            eprintln!("warning: scope {} rescan failed: {error}", scope.id);
+                        }
+                    }
+                }
+                Err(error) => eprintln!(
+                    "warning: cannot read {} for scope {} ({error}); treating as no change",
+                    scope.options.target_dir.display(),
+                    scope.id
+                ),
+            }
+        }
+    }
+}
+
+/// Rescans one root and atomically replaces its manifest.
+fn scan_and_replace(options: &ScanOptions, out_dir: &Path) -> Result<()> {
+    let (graph, _) = fnscope_core::scan(options, out_dir, chrono::Utc::now().to_rfc3339())?;
+    atomic_replace(out_dir, |temp_dir| {
+        fnscope_core::write_manifest(&graph, temp_dir)
+    })
+}
+
+/// Lists scope indices whose fingerprint changed since the previous poll.
+#[cfg(test)]
+fn changed_scope_indices(previous: &[Option<String>], current: &[String]) -> Vec<usize> {
+    current
+        .iter()
+        .enumerate()
+        .filter(|(index, fingerprint)| {
+            previous
+                .get(*index)
+                .and_then(|value| value.as_ref())
+                .is_some_and(|value| value.as_str() != fingerprint.as_str())
+        })
+        .map(|(index, _)| index)
+        .collect()
 }
 
 /// Writes to a sibling temp file first so readers never observe partial JSON.
@@ -188,6 +254,47 @@ mod tests {
         assert_ne!(
             fingerprint(first.path()).unwrap(),
             fingerprint(second.path()).unwrap()
+        );
+    }
+
+    #[test]
+    fn workspace_fingerprints_are_independent_per_scope() {
+        let first_time = UNIX_EPOCH + Duration::from_secs(1_700_000_000);
+        let later_time = first_time + Duration::from_secs(5);
+        let alpha = TestDir::new("workspace-alpha");
+        let beta = TestDir::new("workspace-beta");
+
+        write_file(&alpha, "main.ts", "export const x = 1;", first_time);
+        write_file(&beta, "main.ts", "export const x = 2;", first_time);
+        let before = [
+            fingerprint(alpha.path()).unwrap(),
+            fingerprint(beta.path()).unwrap(),
+        ];
+
+        write_file(&alpha, "main.ts", "export const x = 12345;", later_time);
+        let after = [
+            fingerprint(alpha.path()).unwrap(),
+            fingerprint(beta.path()).unwrap(),
+        ];
+
+        assert_ne!(before[0], after[0]);
+        assert_eq!(before[1], after[1]);
+        assert_eq!(
+            changed_scope_indices(
+                &[Some(before[0].clone()), Some(before[1].clone())],
+                &[after[0].clone(), after[1].clone()],
+            ),
+            vec![0]
+        );
+    }
+
+    #[test]
+    fn first_poll_is_not_reported_as_a_change() {
+        let current = vec!["alpha".to_owned(), "beta".to_owned()];
+        assert!(changed_scope_indices(&[None, None], &current).is_empty());
+        assert_eq!(
+            changed_scope_indices(&[Some("old".to_owned()), None], &current),
+            vec![0]
         );
     }
 }

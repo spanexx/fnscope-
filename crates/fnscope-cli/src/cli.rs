@@ -49,6 +49,18 @@ pub struct Cli {
     /// Model name to use together with `--enrich`.
     #[arg(long)]
     pub model: Option<String>,
+
+    /// Workspace file describing several project scopes; omit for single-scope mode.
+    #[arg(long, value_name = "FILE")]
+    pub workspace: Option<PathBuf>,
+
+    /// Add or override a scope as ID=PATH; repeatable.
+    #[arg(long = "scope", value_name = "ID=PATH")]
+    pub scope: Vec<String>,
+
+    /// Scope served by the compatibility routes; defaults to the workspace default.
+    #[arg(long, value_name = "ID")]
+    pub default_scope: Option<String>,
 }
 
 /// Alias matching the name used by the locked API contract.
@@ -112,6 +124,18 @@ pub enum Commands {
         /// Model name for enrichment.
         #[arg(long)]
         model: Option<String>,
+
+        /// Workspace file describing several project scopes; omit for single-scope mode.
+        #[arg(long, value_name = "FILE")]
+        workspace: Option<PathBuf>,
+
+        /// Add or override a scope as ID=PATH; repeatable.
+        #[arg(long = "scope", value_name = "ID=PATH")]
+        scope: Vec<String>,
+
+        /// Scope served by the compatibility routes; defaults to the workspace default.
+        #[arg(long, value_name = "ID")]
+        default_scope: Option<String>,
     },
 }
 
@@ -147,6 +171,9 @@ impl Cli {
                 invoke: self.invoke,
                 enrich: self.enrich,
                 model: self.model,
+                workspace: self.workspace,
+                scope: self.scope,
+                default_scope: self.default_scope,
             },
         }
     }
@@ -250,6 +277,9 @@ mod tests {
                 invoke,
                 enrich,
                 model,
+                workspace,
+                scope,
+                default_scope,
             } => {
                 assert_eq!(target_dir, &None);
                 assert_eq!(*port, 4310);
@@ -258,6 +288,9 @@ mod tests {
                 assert_eq!(*invoke, InvokeKind::Simulate);
                 assert!(!enrich);
                 assert!(model.is_none());
+                assert!(workspace.is_none());
+                assert!(scope.is_empty());
+                assert!(default_scope.is_none());
             }
             other => panic!("expected Open, got {other:?}"),
         }
@@ -268,5 +301,63 @@ mod tests {
     fn invalid_invoke_mode_is_rejected() {
         assert!(Cli::try_parse_from(["fnscope", "open", "--invoke", "python"]).is_err());
         assert!(Cli::try_parse_from(["fnscope", "./src", "--invoke", "python"]).is_err());
+    }
+
+    #[test]
+    fn open_parses_workspace_flags() {
+        let cli = Cli::try_parse_from([
+            "fnscope",
+            "open",
+            "--workspace",
+            "fnscope.workspace.json",
+            "--scope",
+            "alpha=alpha",
+            "--scope",
+            "beta=beta",
+            "--default-scope",
+            "beta",
+        ])
+        .expect("workspace flags should parse");
+
+        match cli.command.expect("open is a subcommand") {
+            Commands::Open {
+                workspace,
+                scope,
+                default_scope,
+                ..
+            } => {
+                assert_eq!(workspace, Some(PathBuf::from("fnscope.workspace.json")));
+                assert_eq!(scope, vec!["alpha=alpha", "beta=beta"]);
+                assert_eq!(default_scope.as_deref(), Some("beta"));
+            }
+            other => panic!("expected Open, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn bare_target_parses_workspace_flags() {
+        let cli = Cli::try_parse_from([
+            "fnscope",
+            "./src",
+            "--workspace",
+            "ws.json",
+            "--scope",
+            "alpha=alpha",
+        ])
+        .expect("bare workspace flags should parse");
+
+        match cli.resolved_command() {
+            Commands::Open {
+                target_dir,
+                workspace,
+                scope,
+                ..
+            } => {
+                assert_eq!(target_dir, Some(PathBuf::from("./src")));
+                assert_eq!(workspace, Some(PathBuf::from("ws.json")));
+                assert_eq!(scope, vec!["alpha=alpha"]);
+            }
+            other => panic!("expected Open, got {other:?}"),
+        }
     }
 }

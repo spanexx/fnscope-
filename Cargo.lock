@@ -407,6 +407,8 @@ dependencies = [
  "fnscope-enrich",
  "fnscope-server",
  "hex",
+ "serde",
+ "serde_json",
  "sha2",
  "tokio",
 ]

@@ -16,6 +16,8 @@ fnscope-server.workspace = true
 anyhow.workspace = true
 chrono.workspace = true
 clap = { workspace = true, features = ["derive"] }
+serde.workspace = true
+serde_json.workspace = true
 sha2.workspace = true
 hex.workspace = true
 tokio.workspace = true
