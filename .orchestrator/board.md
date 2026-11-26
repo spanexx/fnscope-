@@ -55,9 +55,9 @@ accessibility/polish and acceptance.
 | Job | Work | Worktree / branch | Model | Status |
 |---|---|---|---|---|
 | J4 | CLI workspace config + multi-scope scan/watch | `~/.config/superpowers/worktrees/fnscope/feature-workspace-cli` / `feature/workspace-cli` | paid fallback | running |
-| J5 | Entry-point/module/search explorer | `~/.config/superpowers/worktrees/fnscope/feature-ui-explorer` / `feature/ui-explorer` | Hy4 `#high` (free) | running |
-| J6 | Story / 1-Hop / Split / Raw views | `~/.config/superpowers/worktrees/fnscope/feature-ui-views` / `feature/ui-views` | Hy4 `#high` (free) | running |
-| J7 | Invoke drawer + real trace | `~/.config/superpowers/worktrees/fnscope/feature-ui-invoke` / `feature/ui-invoke` | Hy4 `#high` (free) | running |
+| J5 | Entry-point/module/search explorer | `~/.config/superpowers/worktrees/fnscope/feature-ui-explorer` / `feature/ui-explorer` | Hy4 no-op → paid retry | paid retry running |
+| J6 | Story / 1-Hop / Split / Raw views | `~/.config/superpowers/worktrees/fnscope/feature-ui-views` / `feature/ui-views` | Hy4 partial → paid continuation | 4/10 files written; paid continuation running |
+| J7 | Invoke drawer + real trace | `~/.config/superpowers/worktrees/fnscope/feature-ui-invoke` / `feature/ui-invoke` | Hy4 no-op → paid retry | paid retry running |
 
 Baseline: `ea10b09`. Each job owns a disjoint directory; none may edit `App.tsx` or
 `ui/dist`. The orchestrator wires the modules after review.

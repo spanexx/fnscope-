@@ -83,10 +83,13 @@ them until they appear in this table with evidence.
 - Cost: free.
 - Prior strengths: speed, search, summarization, breadth-first exploration.
 - Prior weaknesses: less proven on deep Rust and subtle contract work; may over-summarize.
-- Observed: none.
-- Best at (prior): light scouting, fast file maps, short briefs, docs lookup.
-- Avoid (prior): deep context gathering, Rust implementation, contract changes, final review.
-- Routing note: DeepSeek `#max` is the deep scout; Hy4 is the fast/backup scout.
+- Observed: strong as a read-only reviewer/scout; three large greenfield UI jobs produced zero or
+  partial code under the step cap.
+- Best at (prior): light scouting, fast file maps, short briefs, read-only review, docs lookup.
+- Avoid (prior): large from-scratch implementation, deep context gathering, contract changes,
+  final review.
+- Routing note: DeepSeek `#max` is the deep scout; Hy4 is the fast/backup scout and reviewer, not
+  a default greenfield implementer.
 - Grades:
 
 | Date | Job | Task type | Correctness | Scope | Tools | Tests | Comms | Efficiency | Confidence | Notes |
@@ -141,6 +144,9 @@ Append one row per completed child. Link the job/commit/review where possible.
 | 2026-11-26 | J1 server | impl | deepseek-v4.1-flash-free#high | server implementation | — | — | — | — | — | 1 | fail | Free usage limit reached before the first edit; relaunched on the paid fallback. |
 | 2026-11-26 | J2 UI foundation | impl | deepseek-v4.1-flash-free#high | UI implementation | — | — | — | — | — | 1 | fail | Free usage limit reached before the first edit; relaunched on the paid fallback. |
 | 2026-11-26 | J1/J2 paid fallback | impl | opencode-go/deepseek-v4.1-flash | implementation | — | — | — | — | — | — | running | Last-resort lane after the free tier was exhausted; budget risk recorded. |
+| 2026-11-27 | J5 explorer | impl | hy4-flash-free#high | greenfield UI implementation | — | — | — | — | — | 1 | fail | Max steps after reading only; zero files/commit. Re-dispatched paid. |
+| 2026-11-27 | J6 views | impl | hy4-flash-free#high | greenfield UI implementation | 3 | 4 | 4 | n/a | 4 | 1 | fail | Partial: 4 of 10 files, no commit; max steps. Paid continuation. |
+| 2026-11-27 | J7 invoke | impl | hy4-flash-free#high | greenfield UI implementation | — | — | — | — | — | 1 | fail | Completed silently with no files/commit. Re-dispatched paid. |
 
 ## Calibration queue
 

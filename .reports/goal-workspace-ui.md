@@ -151,3 +151,16 @@ Verdict: pass (wave running)
 Failure class: none; Hy4 free quota may still cap a job
 Pivot: fall back within the free tier, then paid, only for a failed job
 Next: review each job, wire the components into `App.tsx`, rebuild, and run the full gate.
+
+### 9 — 2026-11-27T00:11
+
+Action: first wave-2 UI attempts on Hy4 free were unreliable: J5 produced no files, J6 stopped
+after 4 of 10 files, J7 produced no files/commit. Recorded the routing evidence in the scorecard
+and L-6; re-dispatched J5/J7 on the paid fallback and continued J6 on the paid fallback. J4 CLI
+remains on the paid Rust lane.
+Verification: J5/J7 worktrees clean at `ea10b09`; J6 partial work uncommitted; no UI code
+integrated yet; paid sessions started.
+Verdict: fail/retry (routing corrected)
+Failure class: Hy4 greenfield implementation capacity
+Pivot: paid model for large greenfield UI; Hy4 limited to read-only review/scout and small edits
+Next: review each completed paid job, integrate one at a time, rebuild and run the full gate.
