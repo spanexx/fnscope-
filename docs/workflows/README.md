@@ -12,6 +12,18 @@ procedure. Use the smallest one that fits; do not run all five by default.
 | `boundary-contract-audit.md` | Data crosses a boundary (manifest, form, POST, runner, export), or a UI feature must be proven as rendered | L4, L5, L8 |
 | `reviewer-process.md` | Every implementation job: self-contained brief, independent review, FAIL fix loop, then merge only on PASS | L1, L6, L7, L11, iteration 17 |
 
+## Orchestrator registers
+
+| File | Use |
+|---|---|
+| `model-scorecard.md` | Evidence-based routing: grade every subagent after each job and record which model is strong or weak for which task type |
+| `orchestrator-lessons.md` | Per-run lessons, root causes and guardrails; read before planning, updated after every wave |
+
+The repo profile is `.orchestrator/profile.md`; it supplies this repo's exact documents,
+gates, shared files and model roster to the project-agnostic `orchestrator` skill. The agent
+definitions are global OpenCode agents (`impl`, `scout`, `review`, `critic`) in
+`~/.config/opencode/agents/`, shared across repositories.
+
 `scripts/check-culture.sh` is the machine gate for the rules these procedures
 share. Run it after staging; it prints `CULTURE_OK` only when every mechanical
 check passes. Run `bash scripts/check-culture.sh --self-test` before trusting

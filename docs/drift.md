@@ -60,6 +60,14 @@ D-6 closure requires replacing the dependency with `tree-sitter-kotlin-ng 1.1` (
 
 **D-6 -> Resolved 2026-11-26.** Verified by: workspace and parser manifests now declare `tree-sitter-kotlin-ng = "1.1"`; `src/kotlin/` contains no `unsafe`/`transmute` and uses `tree_sitter_kotlin_ng::LANGUAGE.into()`; grammar node kinds were remapped for the -ng grammar with all 14 Kotlin tests preserved. `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0` with 233 tests passing, and the 13-language polyglot scan reports 78 functions across 13 extensions with 0 dangling edges.
 
+    D-7 | 2026-11-26 | docs/features/fnscope-base/PRD-TRD.md:110-126 and README.md:5 promise Raw, Split, Preview and 1-Hop Map | ui/src/FunctionExplorer.tsx:830 uses the internal `preview` view; the validated workspace design calls the primary view Story | Open | workspace-ui orchestrator
+
+D-7 closure requires the workspace-ui pack to rename or relabel the primary view and update the base PRD/README references, with a `Verified by:` note naming the rendered browser check.
+
+    D-8 | 2026-11-26 | crates/fnscope-server/src/lib.rs:117-118 comment says the loaded graph is validated before serving | fn_graph deserializes `FnGraph` but never calls `FnGraph::validate` | Open | workspace-ui server job
+
+D-8 closure requires the server scope work to validate the graph before serving, add a corrupt-manifest test, and record the real gate output in a `Verified by:` note.
+
 ## Review rule (non-negotiable)
 
 When a review finds a gap between a locked doc and the code, append the entry

@@ -1,0 +1,378 @@
+fnscope-workspace-ui — GRILL (requirements lock)
+=================================================
+
+Status: Locked
+Date: 2026-11-26
+Decisions by: agent (delegated by user, 2026-11-26)
+
+Delegation source: the workspace-ui goal message (2026-11-26), recorded as a delegation in
+`.reports/goal-workspace-ui.md:20`; the chat transcript is not a committed artifact. No verbatim
+user quote is claimed here because none can be cited from a repository file.
+
+Human gates: PR review/merge, stable blessing, and the commit-to-main decision are NOT waived.
+The loop stops at the PR gate after implementation, simulation, drift check and verification.
+
+Source: the user's workspace-ui goal message; the validated prototype under
+`wireframe/fnscope-workspace/`; `docs/features/workspace-ui/research/discovery-synthesis.md`;
+the server/scope, wireframe-acceptance and product/security scout briefs; and the locked
+contract `docs/contract/rust-api.md`.
+
+AUTHORITY RULE: no question was asked or confirmed with the user for this pack. Every LOCKED
+ANSWER below is an [agent decision] under the delegation above. Quoted words are verbatim from
+the goal message or a repository file; no user receipt is invented. Evidence limits are named
+where the scout evidence stops.
+
+DECISION 1 — Real scopes live on the server, not in the browser
+----------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  A project scope is one independently scanned manifest plus a server-side registry entry.
+  The UI never slices one graph into fake projects. The demo scopes (`fnscope-crates`,
+  full tree, `sample-nlp-app`) are configured scopes, not hardcoded client filters.
+
+WHY
+  The prototype's three scopes are slices of one self-scan. They keep one `rootDir`, retain
+  cross-scope `calledBy`/`callsFnId` edges, and cannot resolve Node invokes per project. A
+  client-only scope switch would look isolated while leaking fixture callers and the wrong
+  source root. Real isolation requires per-scope graphs and per-scope invoke roots.
+
+SOURCE
+  `docs/features/workspace-ui/research/discovery-synthesis.md` ("Scope model");
+  server/scope scout brief; prototype `wireframe/fnscope-workspace/generate-data.js:193-242`;
+  `crates/fnscope-server/src/lib.rs:41-55,100-138,332-361`;
+  `crates/fnscope-core/src/scan.rs:504-510`.
+
+ALIGNMENT
+  Serves the user's "zero cross-repo pollution" requirement and makes the project switcher
+  truthful. It rules out client-side slicing as the shipped implementation.
+
+DECISION 2 — Additive scope API; no locked name or schema break
+---------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Add `GET /api/scopes`, `GET /api/scopes/{id}/fn-graph.json` and
+  `POST /api/scopes/{id}/invoke`. Keep `/api/fn-graph.json` and `/api/invoke` as default-scope
+  compatibility routes. Add new scope/workspace types and a scope registry module. Do not
+  rename or remove `ServerConfig`, `router`, `serve`, `InvokeMode`, `FnGraph`, `FnRecord`,
+  `InvokeRequest`, `InvokeResponse`, `TraceEntry`, or `schemaVersion`.
+
+WHY
+  The locked contract is a public integration surface. Existing CLI/single-scope users and the
+  old UI must keep working. Scope identity belongs in a registry/descriptor, not in `FnGraph`,
+  so no schema bump is needed.
+
+SOURCE
+  `docs/contract/rust-api.md:13-92,180-201,214`; server/scope scout brief ("Additive server/API
+  design"); `docs/features/workspace-ui/research/discovery-synthesis.md` ("Scope model").
+
+ALIGNMENT
+  Keeps backward compatibility while enabling isolated scopes. Adding routes/types is an
+  additive contract addendum, reviewed at the PR gate; it is not a breaking change.
+
+DECISION 3 — Workspace config + CLI; single-scope behavior stays unchanged
+--------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  A local `fnscope.workspace.json` plus `--workspace`, repeatable `--scope ID=PATH` and
+  `--default-scope` configure scopes. Relative paths resolve against the config file. With no
+  workspace configuration, `open` behaves exactly as today: one scan, one implicit `default`
+  scope, `.fnscope/fn-graph.json`. Workspace mode writes
+  `.fnscope/scopes/<id>/fn-graph.json`. Do not change locked `ScanOptions` defaults or
+  auto-discover repositories.
+
+WHY
+  The product is local-first and environment-agnostic. Auto-discovery would silently expose
+  unrelated trees; changing default excludes would alter locked scan behavior. An explicit
+  config is reviewable, testable and portable.
+
+SOURCE
+  `docs/contract/rust-api.md:132-155,203-210`; server/scope scout brief ("Configuration and
+  discovery"); `crates/fnscope-cli/src/{cli,main}.rs`; `crates/fnscope-core/src/scan.rs:25-69`.
+
+ALIGNMENT
+  Preserves the existing CLI contract and gives real projects a deliberate opt-in. The demo
+  workspace config can name the prototype's three scopes without hardcoding them in the UI.
+
+DECISION 4 — Default scope is configured/active, not a hardcoded demo name
+--------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Default scope precedence: `--default-scope` > workspace `defaultScope` > first configured
+  scope. In single-scope mode the only scope is `default`. The UI stores the last selection in
+  `localStorage` but validates it against `/api/scopes`; an unknown id falls back to the
+  server default. The prototype's `fnscope-crates` default is a demo config choice, not a
+  product constant.
+
+WHY
+  A real user opens their own project. Hardcoding `fnscope-crates` would hide the project they
+  actually scanned and repeat the old hardcoded-default defect.
+
+SOURCE
+  Prototype `wireframe/fnscope-workspace/README.md:59-69`; server/scope scout brief
+  ("Configuration and discovery"); current UI defaults
+  `ui/src/FunctionExplorer.tsx:817,822-827`.
+
+ALIGNMENT
+  Makes first-run behavior honest and keeps scope switching deterministic after reload.
+
+DECISION 5 — Entry points are graph-derived, not a name allowlist
+-----------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Entry-point candidates are functions with zero resolved internal callers, ranked by step
+  count then name. Show a capped first page (24) with an explicit "show all zero-caller
+  functions" toggle and a count of hidden candidates. Do not use a hardcoded name list. If the
+  manifest exposes tags such as `entrypoint`, use them as a ranking hint, not a gate.
+
+WHY
+  The prototype's `ENTRY_NAMES` allowlist is fnscope-specific and hides legitimate roots in
+  other repositories. The 803 zero-caller self-scan functions are noisy, but hiding them behind
+  a generic rule and a visible toggle is honest and portable.
+
+SOURCE
+  Prototype `wireframe/fnscope-workspace/app.js:27-46,380-441`; wireframe scout brief
+  ("Explorer"); `docs/features/workspace-ui/research/discovery-synthesis.md` ("Prototype
+  acceptance inventory").
+
+ALIGNMENT
+  Serves code-review discovery in any repo and removes a hardcoded fnscope heuristic.
+
+DECISION 6 — Story replaces Preview; Raw/Split/1-Hop remain
+------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  The primary view is Story. Raw, Split and 1-Hop remain. The old internal `preview` view may
+  be migrated or renamed, but the user-facing Story behavior is the validated prototype:
+  Triggered by, Inputs, Execution story, Returns, Declared errors. Record the Preview→Story
+  naming change in `docs/drift.md` before UI code lands.
+
+WHY
+  The validated design calls the primary view Story. The existing PRD/README promise Preview;
+  leaving the docs unchanged would be a silent contract drift.
+
+SOURCE
+  Prototype `wireframe/fnscope-workspace/app.js:506-517,529-732`; wireframe scout brief
+  ("Canvas views"); `docs/features/fnscope-base/PRD-TRD.md:110-126`.
+
+ALIGNMENT
+  Keeps the validated information architecture and records the documentation change instead of
+  pretending the old label still holds.
+
+DECISION 7 — Real manifest data only: full source and steps, no curated overrides
+----------------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  The UI renders `FnRecord.sourceCode`, `FnRecord.steps`, `returns`, `errors`, `calledBy`,
+  parameters and metadata from the served manifest. Remove the prototype's curated story
+  overrides, 3,200-character source truncation and 14-step embedding. Keep the six-step initial
+  display and expand-on-demand; render the real step ids. If source/steps become too large,
+  optimize with lazy rendering or a future additive source endpoint, not by lying about the
+  data.
+
+WHY
+  Curated narratives inventory behavior the manifest does not contain and break trace joining.
+  The product's value is honest code understanding. Trimming can be a presentation choice, but
+  the underlying data must be real.
+
+SOURCE
+  Prototype `generate-data.js:149-187,193-246`; wireframe scout brief ("Simulated → must
+  become real"; gaps 3-4); `docs/contract/rust-api.md:21-58`.
+
+ALIGNMENT
+  Serves the user's "everything in the wireframe has to be working" and "review code easily"
+  goals without inventing facts.
+
+DECISION 8 — Invoke is real per scope; mode is a server capability
+------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  The drawer posts to the selected scope's invoke route. Render the real `InvokeResponse`
+  (`ok`, `data`, `error`, `trace`, `durationMs`), join trace entries by step id, and show
+  `ok:false`/HTTP failures as errors. Remove the fake 650 ms delay and random duration. The
+  simulate/live choice is the server/scope `invoke_mode`, not a per-request field. If a scope
+  is simulate-only, disable or clearly label Live and explain how to start Node mode. Unknown
+  `fnId` inside a valid scope returns a recoverable error; never search another scope.
+
+WHY
+  The locked `InvokeRequest` has no mode field and `ServerConfig` fixes the mode. The prototype
+  fakes live mode and a delay, which would mislead users. Real invocation is a core product
+  promise.
+
+SOURCE
+  `docs/contract/rust-api.md:78-87,180-201`; server/scope scout brief ("Invoke and live
+  behavior"); prototype `wireframe/fnscope-workspace/app.js:1055-1100`; wireframe scout brief
+  ("Invoke drawer"; gap 2).
+
+ALIGNMENT
+  Keeps the locked invoke schema and makes the sandbox honest about what actually ran.
+
+DECISION 9 — Paper default, Graphite alternate; bundled offline assets
+----------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Ship the validated Paper and Graphite palettes, default Paper, persisted in `localStorage`.
+  Use IBM Plex Sans/Mono/Serif from bundled assets (no Google Fonts CDN), Lucide from the npm
+  package already used by the UI, and the existing Tailwind build. No Tailwind CDN, no unpkg,
+  no external requests at runtime. Keep 270px sidebar and 320px drawer.
+
+WHY
+  The validated design was explicitly chosen to avoid the generic dark-indigo AI-dashboard
+  look. A local-first tool must work offline. CDN dependencies and dynamic Tailwind classes are
+  a production failure mode.
+
+SOURCE
+  Prototype `wireframe/fnscope-workspace/index.html:7-57`; prototype README "Palette";
+  product scout brief ("Offline/self-contained"); `ui/build.sh`; `ui/package.json`.
+
+ALIGNMENT
+  Preserves the approved design and makes it shippable offline.
+
+DECISION 10 — One reset boundary for scope/function changes
+------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Switching scope or function resets selection-derived state: trail, drawer run/args/error,
+  step expansion, and any in-flight invoke. A scope switch remounts the explorer by scope id.
+  An in-flight run is cancelled or ignored via a request token/AbortController; a late response
+  must never attach to a newly selected function.
+
+WHY
+  The prototype resets some state but not all (mode, view, drawer tab, banner) and its delayed
+  run can land on the wrong selection. Stale state is a correctness bug, not cosmetic.
+
+SOURCE
+  Prototype `wireframe/fnscope-workspace/app.js:79-102,968-1053,1055-1101`; wireframe scout
+  brief (gaps 5, 7); UI architecture brief (state reset).
+
+ALIGNMENT
+  Makes navigation deterministic and prevents cross-scope/selection leakage.
+
+DECISION 11 — Modular UI, one embedded asset bundle
+--------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Replace the monolithic `FunctionExplorer` with shell, explorer, views, invoke, primitives,
+  theme and pure helper modules. Keep exactly one `index.html`, `app.js` and `app.css` embedded
+  by the server. Pure helpers get dependency-free tests. No new UI asset route.
+
+WHY
+  The current 1,824-line component owns everything; parallel jobs would collide. The server
+  embeds three locked assets, so a new asset route would be an unnecessary contract change.
+
+SOURCE
+  UI architecture fallback brief (module split); `docs/contract/rust-api.md:187-198,214`;
+  `crates/fnscope-server/src/lib.rs:24-28`.
+
+ALIGNMENT
+  Enables disjoint parallel work and keeps the server contract stable.
+
+DECISION 12 — Accessibility, responsive and public-product states are must-ship
+------------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Ship loading/empty/error states with a retry and the exact command; a provenance strip
+  (root, generatedAt, counts, local-only, simulate/live); focus trap/restore for drawer/menu;
+  `aria-live` toasts; `aria-current`; skip link; visible focus; reduced-motion support;
+  platform-aware shortcut hints; sidebar/drawer overlays below 1180px; no page-level horizontal
+  scroll; 44px touch targets; 200% zoom usable. Never render sample graph data as if it were
+  the real manifest. Remove fake actions (Open source, Scan another repository, fake Rescan).
+
+WHY
+  The prototype is a design mock; several controls are stubs, hidden panels remain focusable,
+  and the current UI silently falls back to demo data. A public product cannot present those
+  as working behavior.
+
+SOURCE
+  Product scout brief (must-ship, demo narrative, acceptance checks); wireframe scout brief
+  (gaps 6-16); current `ui/src/main.tsx:36-49`; prototype `wireframe/fnscope-workspace/app.js`.
+
+ALIGNMENT
+  Serves "public-presentable" and "everything must work" without expanding into a new product.
+
+DECISION 13 — Security hardening now; vulnerability scanning later
+------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Harden the local server: loopback default, Host/Origin checks, no CORS, scope-id whitelist,
+  canonicalized scope roots and Node module paths, manifest size/count limits, Node process
+  timeout/tree cleanup and a concurrency cap, no source in logs. Do not implement vulnerability
+  detection in this pack. Leave stable identity (`scopeId + fnId + stepId + astHash`) and a
+  separate future findings model/plugin boundary documented as future work.
+
+WHY
+  Multiple manifests plus Node execution increase the attack surface. The user asked for a
+  future security direction, not a half-built scanner. Mixing the two would bloat this pack and
+  weaken both.
+
+SOURCE
+  Product scout brief (security extension points, privacy, acceptance checks); server/scope
+  scout brief (security/privacy); `crates/fnscope-server/src/lib.rs:332-431`.
+
+ALIGNMENT
+  Protects the current product and preserves a clean extension seam for security analysis.
+
+DECISION 14 — Dependency-free checks plus a real browser audit
+--------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Add a dependency-free `ui/scripts/check-ui.mjs` (dist assets exist/non-trivial, marker strings,
+  no absolute paths, no CDN references, required accessibility hooks) and
+  `scripts/check-ui-contract.mjs` (served manifest fields and scope/invoke responses). Add the
+  UI build to `scripts/test-all.sh` before the release build. Use a recorded real-browser audit
+  for interaction evidence in this pack; defer Playwright/Vitest to a future pack unless the
+  audit proves insufficient. Pure helpers are tested by bundling with the existing esbuild and
+  importing the result.
+
+WHY
+  The repo has no UI test framework and the UI fallback recommends avoiding a heavy framework.
+  The highest-risk failures are rendered behavior and stale builds, so a real browser audit plus
+  served-contract checks catches more than a shallow unit suite at lower cost.
+
+SOURCE
+  Process/gates fallback brief (guardrail gaps, acceptance checklist); UI architecture fallback
+  brief (build/test commands); `ui/package.json`; `scripts/test-all.sh`; `scripts/smoke-server.sh`.
+
+ALIGNMENT
+  Provides repeatable evidence without adding an unvetted dependency or a slow browser install.
+
+DECISION 15 — Guardrails before code: origin mapping, UI freshness, drift
+--------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Before code lands: add a path-specific origin mapping so the new UI/scope modules require
+  `docs/features/workspace-ui/`; add a UI-dist freshness check (or build UI before the release
+  build); add the served-field/scope check; record the Preview→Story drift and any existing
+  server comment-vs-code gap. The contract addendum belongs to the orchestrator. Agents never
+  edit the locked contract or commit/merge.
+
+WHY
+  The current origin gate maps all `ui/src` changes to `fnscope-base`, so this pack could ship
+  without its own origin docs. `test-all.sh` never rebuilds the UI, so stale dist can be
+  embedded. Catching these mechanically prevents a repeat of the earlier false-green failures.
+
+SOURCE
+  Process/gates fallback brief (guardrail gaps); `scripts/check-culture.sh:270-355`;
+  `scripts/test-all.sh`; `docs/drift.md`; `AGENTS.md` commit/worktree rules.
+
+ALIGNMENT
+  Turns the user's "police the whole thing" instruction into enforceable checks.
+
+DECISION 16 — Human gates remain; local feature-branch commits are allowed
+---------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  The orchestrator may commit logical changes on `feature/workspace-ui` for review, but does
+  not merge to `main`, open a release, or move `stable` without the user's explicit approval.
+  The PR/review gate is mandatory. Under the documented fast-mode exception, a subagent may
+  commit locally inside its own worktree; it never merges, pushes, or touches the integration
+  branch. The orchestrator reviews and cherry-picks, then commits the integrated tree.
+
+WHY
+  Delegation covers design and implementation decisions, not the human merge/release gate.
+  Isolated local commits make review and cherry-picking possible without polluting `main`.
+  Workers editing without commits would force the orchestrator to extract patches from many
+  dirty worktrees, which is slower and loses files on renames.
+
+SOURCE
+  Goal skill `decisions.md:50-58,83-100`; `AGENTS.md` commit/worktree rules;
+  `.orchestrator/profile.md` fast-mode exception; orchestrator skill "Worktrees, commits and
+  gates".
+
+ALIGNMENT
+  Keeps the loop moving while preserving the user's control over the public branch. The
+  exception is recorded in every worker brief; `AGENTS.md` remains the general rule.
+
+EVIDENCE LIMITS
+  - The server/scope, wireframe-acceptance and product/security briefs are complete.
+  - The UI architecture and process briefs were produced by Hy4 `#high` after the DeepSeek
+    `#max` free-tier ceiling; their findings were checked against the repository.
+  - The exact UI test harness beyond the dependency-free checks is deferred to the IMPL; this
+    is a delivery choice, not an open product question.
+  - No performance measurement of a full real manifest has been run yet; the design must prove
+    it during implementation.
+
+No remaining open questions.

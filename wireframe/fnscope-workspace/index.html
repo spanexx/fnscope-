@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en" data-theme="paper">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>fnscope — workspace prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+            serif: ['IBM Plex Serif', 'Georgia', 'serif'],
+          },
+          colors: {
+            bg: 'rgb(var(--bg) / <alpha-value>)',
+            surface: 'rgb(var(--surface) / <alpha-value>)',
+            panel: 'rgb(var(--panel) / <alpha-value>)',
+            raised: 'rgb(var(--raised) / <alpha-value>)',
+            wash: 'rgb(var(--wash) / <alpha-value>)',
+            active: 'rgb(var(--active) / <alpha-value>)',
+            line: 'rgb(var(--line) / <alpha-value>)',
+            'line-strong': 'rgb(var(--line-strong) / <alpha-value>)',
+            ink: 'rgb(var(--ink) / <alpha-value>)',
+            muted: 'rgb(var(--muted) / <alpha-value>)',
+            faint: 'rgb(var(--faint) / <alpha-value>)',
+            accent: 'rgb(var(--accent) / <alpha-value>)',
+            'accent-ink': 'rgb(var(--accent-ink) / <alpha-value>)',
+            info: 'rgb(var(--info) / <alpha-value>)',
+            ok: 'rgb(var(--ok) / <alpha-value>)',
+            warn: 'rgb(var(--warn) / <alpha-value>)',
+            err: 'rgb(var(--err) / <alpha-value>)',
+          },
+        },
+      },
+    };
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root,
+    :root[data-theme="paper"] {
+      color-scheme: light;
+      --bg: 243 239 230;
+      --surface: 250 247 240;
+      --panel: 255 253 248;
+      --raised: 237 231 218;
+      --wash: 231 224 210;
+      --active: 221 212 195;
+      --line: 213 205 189;
+      --line-strong: 185 175 156;
+      --ink: 27 26 23;
+      --muted: 94 89 79;
+      --faint: 111 104 92;
+      --accent: 178 58 30;
+      --accent-ink: 255 248 240;
+      --info: 47 107 128;
+      --ok: 62 107 74;
+      --warn: 138 90 31;
+      --err: 163 49 42;
+      --shadow: 27 26 23;
+    }
+
+    :root[data-theme="graphite"] {
+      color-scheme: dark;
+      --bg: 18 17 15;
+      --surface: 25 23 20;
+      --panel: 32 29 25;
+      --raised: 42 38 32;
+      --wash: 51 46 39;
+      --active: 62 56 47;
+      --line: 58 52 44;
+      --line-strong: 90 82 70;
+      --ink: 237 232 222;
+      --muted: 167 158 143;
+      --faint: 148 139 124;
+      --accent: 224 138 60;
+      --accent-ink: 26 21 16;
+      --info: 134 175 196;
+      --ok: 143 191 122;
+      --warn: 224 164 88;
+      --err: 224 120 104;
+      --shadow: 0 0 0;
+    }
+
+    html, body { height: 100%; }
+    body { font-feature-settings: "ss01"; }
+
+    .rounded-xl { border-radius: 8px !important; }
+    .rounded-lg { border-radius: 6px !important; }
+    .rounded-md { border-radius: 4px !important; }
+
+    .shadow-xl,
+    .shadow-2xl { box-shadow: 0 8px 28px rgb(var(--shadow) / 0.14) !important; }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgb(var(--line-strong)); border-radius: 999px; border: 2px solid rgb(var(--bg)); }
+    ::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted)); }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    summary::-webkit-details-marker { display: none; }
+    .step-spine::before {
+      content: "";
+      position: absolute;
+      left: 10px;
+      top: 24px;
+      bottom: -4px;
+      width: 1px;
+      background: rgb(var(--line));
+    }
+    .step-spine:last-child::before { display: none; }
+    .code-block { tab-size: 2; }
+    mark { background: rgb(var(--accent) / 0.14); color: rgb(var(--accent)); border-radius: 2px; padding: 0 1px; }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(6px) scale(0.98); }
+      to { opacity: 1; transform: none; }
+    }
+    .toast { animation: toast-in 0.18s ease-out; }
+    @media (max-width: 1180px) {
+      #drawer { position: fixed; right: 0; top: 52px; bottom: 0; z-index: 45; box-shadow: -20px 0 60px rgb(var(--shadow) / 0.18); }
+    }
+  </style>
+</head>
+<body class="h-screen overflow-hidden bg-bg font-sans text-ink antialiased selection:bg-accent/20">
+  <div class="flex h-full flex-col">
+    <header class="relative z-40 flex h-[52px] shrink-0 items-center gap-2 border-b border-line bg-surface px-2.5">
+      <button id="sidebar-toggle" data-action="toggle-sidebar" aria-label="Toggle explorer" class="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-transparent text-muted transition-colors hover:border-line hover:bg-raised hover:text-ink">
+        <i data-lucide="panel-left" class="h-4 w-4"></i>
+      </button>
+
+      <div class="flex shrink-0 items-center gap-2 pl-0.5">
+        <div class="grid h-7 w-7 place-items-center rounded-sm bg-accent">
+          <span class="-mt-px font-mono text-[10px] font-semibold tracking-tighter text-accent-ink">{ }</span>
+        </div>
+        <span class="font-serif text-[16px] font-semibold tracking-[-0.01em] text-ink">fnscope</span>
+        <span class="hidden font-mono text-[9px] uppercase tracking-[0.14em] text-faint sm:inline">/ prototype</span>
+      </div>
+
+      <span class="mx-1 hidden h-5 w-px bg-line sm:block"></span>
+
+      <div id="project-switcher" class="relative shrink-0">
+        <button id="project-button" data-action="toggle-project-menu" aria-haspopup="menu" aria-expanded="false" class="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-left transition-colors hover:border-line-strong hover:bg-raised">
+          <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"></span>
+          <span id="project-name" class="max-w-[120px] truncate text-[12px] font-medium text-ink">fnscope-crates</span>
+          <span id="project-stats" class="hidden font-mono text-[10px] text-faint lg:inline">981 fns · 1 lang</span>
+          <i data-lucide="chevron-down" class="h-3.5 w-3.5 shrink-0 text-faint"></i>
+        </button>
+        <div id="project-menu" class="absolute left-0 top-full z-50 mt-2 hidden w-[390px] max-w-[calc(100vw-24px)] rounded-lg border border-line-strong bg-panel shadow-2xl"></div>
+      </div>
+
+      <div class="mx-1 hidden h-5 w-px bg-line md:block"></div>
+
+      <div class="hidden min-w-0 flex-1 items-center gap-1 md:flex">
+        <button id="trail-back" data-action="back" aria-label="Back in call path" class="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-transparent text-muted transition-colors hover:border-line hover:bg-raised hover:text-ink disabled:cursor-not-allowed disabled:opacity-25">
+          <i data-lucide="arrow-left" class="h-3.5 w-3.5"></i>
+        </button>
+        <nav id="breadcrumb" aria-label="Call path" class="no-scrollbar flex min-w-0 items-center gap-0.5 overflow-x-auto"></nav>
+      </div>
+
+      <div class="flex-1 md:hidden"></div>
+
+      <div id="view-switcher" class="hidden shrink-0 items-center gap-0.5 rounded-md border border-line bg-panel p-0.5 sm:flex"></div>
+
+      <button id="theme-toggle" data-action="toggle-theme" aria-label="Switch palette" title="Switch to Graphite" class="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-line text-muted transition-colors hover:border-line-strong hover:bg-raised hover:text-ink">
+        <i data-lucide="moon" class="h-4 w-4"></i>
+      </button>
+
+      <button id="drawer-toggle" data-action="toggle-drawer" aria-label="Toggle invoke sandbox" class="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-line text-muted transition-colors hover:border-line-strong hover:bg-raised hover:text-ink">
+        <i data-lucide="panel-right" class="h-4 w-4"></i>
+      </button>
+    </header>
+
+    <div class="relative flex min-h-0 flex-1">
+      <aside id="sidebar" class="flex shrink-0 flex-col overflow-hidden border-r border-line bg-surface transition-[width,opacity] duration-200" style="width: 270px">
+        <div class="flex h-full w-[270px] flex-col">
+          <div class="border-b border-line/70 p-3">
+            <div class="mb-2 flex items-center justify-between gap-2">
+              <span class="font-mono text-[9px] font-medium uppercase tracking-[0.16em] text-faint">Explorer</span>
+              <span id="sidebar-scope" class="max-w-[150px] truncate font-mono text-[9.5px] text-faint"></span>
+            </div>
+            <label class="relative block">
+              <i data-lucide="search" class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint"></i>
+              <input id="search" type="text" autocomplete="off" spellcheck="false" placeholder="Filter functions, modules, IDs…" class="h-8 w-full rounded-md border border-line bg-panel pl-8 pr-12 text-[11.5px] text-ink placeholder:text-faint focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/20" />
+              <kbd id="search-kbd" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-sm border border-line bg-raised px-1 py-0.5 font-mono text-[9px] text-faint">⌘K</kbd>
+              <button id="search-clear" data-action="clear-search" aria-label="Clear search" class="absolute right-1.5 top-1/2 hidden -translate-y-1/2 rounded p-1 text-muted hover:text-ink">
+                <i data-lucide="x" class="h-3 w-3"></i>
+              </button>
+            </label>
+            <div id="mode-switcher" class="mt-2 grid grid-cols-2 gap-0.5 rounded-md border border-line bg-panel p-0.5"></div>
+          </div>
+          <div id="sidebar-summary" class="border-b border-line/60 px-3 py-2 text-[10px] text-muted"></div>
+          <div id="sidebar-list" class="min-h-0 flex-1 overflow-y-auto"></div>
+          <div class="border-t border-line/70 p-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <div id="sidebar-footer" class="min-w-0 text-[9.5px] leading-4 text-faint"></div>
+              <button data-action="rescan" class="shrink-0 rounded-md border border-line px-2 py-1 text-[10px] text-muted transition-colors hover:border-line-strong hover:text-ink">Rescan</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main id="main" class="min-w-0 flex-1 overflow-y-auto bg-bg">
+        <div id="canvas"></div>
+      </main>
+
+      <div id="drawer-backdrop" data-action="toggle-drawer" class="fixed inset-x-0 bottom-0 top-[52px] z-[44] hidden bg-black/30"></div>
+
+      <aside id="drawer" class="flex shrink-0 flex-col overflow-hidden border-l border-line bg-surface transition-[width,opacity] duration-200" style="width: 320px">
+        <div class="flex h-full w-[320px] flex-col">
+          <div class="flex h-11 shrink-0 items-center justify-between border-b border-line px-3">
+            <div class="flex items-center gap-2">
+              <i data-lucide="square-terminal" class="h-4 w-4 text-accent"></i>
+              <span class="text-[12px] font-medium text-ink">Invoke Sandbox</span>
+              <span class="rounded-sm border border-line px-1 py-0.5 font-mono text-[8.5px] uppercase tracking-[0.12em] text-faint">mock</span>
+            </div>
+            <button data-action="toggle-drawer" aria-label="Close invoke sandbox" class="grid h-6 w-6 place-items-center rounded-sm text-muted hover:bg-raised hover:text-ink">
+              <i data-lucide="x" class="h-3.5 w-3.5"></i>
+            </button>
+          </div>
+          <div id="drawer-body" class="min-h-0 flex-1 overflow-y-auto p-3"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div id="toasts" class="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-[320px] flex-col gap-2"></div>
+
+  <script src="data.js?v=4"></script>
+  <script src="app.js"></script>
+</body>
+</html>
