@@ -1,0 +1,408 @@
+fnscope - GRILL-fnscope-culture-reviewers.txt
+Origin pack: CULTURE / REVIEWER workflow
+=====================================================================
+
+Status: Locked
+Date: 2026-11-26
+Decisions by: agent (delegated by user, 2026-11-26)
+Human gates waived by user, 2026-11-26
+Verbatim waiver sentence: "It's okay, you don't need a human approval. You can do it, but I just want you to document your decisions and why you made the decisions as you go."
+  Source: .reports/goal-build-fnscope.md (main copy), iteration 46, line 422.
+RECONSTRUCTED 2026-11-26 - this is a reconstruction from durable repo evidence,
+not a contemporary transcript. See "Evidence limits" below.
+No remaining open questions
+
+This is a plain-text requirements lock for how fnscope turns real build
+mistakes into enforceable culture: a rule, a machine check, and an independent
+reviewer. It exists so a later agent can see why the workflow looks the way it
+does without guessing. Every answer below is marked [agent decision] because
+the user removed the question loop. No user question is fabricated.
+
+EVIDENCE LIMITS (read before the decisions)
+-------------------------------------------
+- Delegated authority is verbatim at .reports/goal-build-fnscope.md line 12:
+  "ask me no questions make all decisions yourself".
+- The worktree copy of the ledger ends at iteration 43. Iterations 44-46 are
+  cited from the main copy of .reports/goal-build-fnscope.md. The waiver
+  sentence in the header was not available when the base pack was written:
+  docs/features/fnscope-base/GRILL.txt lines 182-189 marks the wording then
+  available as a job-brief paraphrase and refuses to quote it as evidence.
+  The sentence here is copied verbatim from the main ledger line 422.
+- Source shorthand used below: "ledger" = .reports/goal-build-fnscope.md;
+  "L#" = docs/ethics/lessons.md; "W-reviewer" =
+  docs/workflows/reviewer-process.md; "R-J21" = .reports/reviews/J21.md.
+  Other files are named in full. Where iteration numbers are quoted inside
+  a workflow or lessons file, the file:line of that quote is given.
+- Where this pack says RECONSTRUCTED 2026-11-26, it restates decisions already
+  recorded in the ledger, workflows, ethics docs, review reports and skills.
+  It does not claim that these words were written at the original moment.
+
+
+D1 [agent decision] - One three-part origin rule for every real mistake.
+  DECISION: A mistake becomes culture only when three things exist: the rule
+  is stated in the implementer's brief, a machine check enforces it, and an
+  independent reviewer audits the diff before merge. Each L1-L11 incident is
+  recorded with its real command/output, the rule that came out of it, and the
+  workflow or checker item that enforces it.
+  WHY: W-reviewer lines 5-15 names four incidents where the lesson existed in
+  words and the next job still walked into it (iteration 3, 13, 12 and 17).
+  Lines 17-20 state the three-part rule verbatim: "A mistake becomes culture
+  only when three things exist: the rule is stated in the implementer's brief,
+  a machine check enforces it (`scripts/check-culture.sh`), and an independent
+  reviewer audits the diff before merge."
+  SOURCE: W-reviewer lines 3-24; docs/ethics/lessons.md lines 3-27 (index) and
+  29-252 (L1-L11); docs/workflows/README.md lines 3-20 and 30-45.
+  ALIGNMENT: serves the locked outcome of a working, verified tool (ledger
+  line 4) and acceptance evidence 1 (ledger line 6) by making gates
+  reproducible; agrees with base pack R3 and R6 (orchestrator owns every gate;
+  failed work loops back to its owning job).
+
+
+D2 [agent decision] - L1: bounded write windows, then a compile window.
+  DECISION: Parallel writes happen in bounded windows; a compile window
+  follows every batch. Only the orchestrator runs cargo; agents may run a
+  read-only rustfmt --check on their own files. Diagnostics go back to the
+  owning job with the exact error, never to an orchestrator rewrite.
+  WHY: iteration 3 produced `CARGO_CHECK_STATUS=101` and seven parser errors
+  from delegated code written without compiler feedback, by design, to avoid
+  parallel cargo contention (quoted at docs/ethics/lessons.md:31-39 and
+  docs/workflows/compile-window.md:5-13).
+  SOURCE: docs/ethics/lessons.md:17,29-49; docs/workflows/compile-window.md:
+  3-13,15-17,27-48,50-57; docs/ethics/boundary-discipline.md:29-33.
+  VALIDATION: docs/workflows/compile-window.md:50-57 — `cargo fmt --all
+  -- --check` -> `FMT_STATUS=0`, the smallest compile scope succeeds, and
+  `cargo test --workspace` succeeds with its count recorded; every failure has
+  a named owner and its verbatim diagnostic in the ledger.
+  REVIEWER CHECK: W-reviewer items 2, 8 and 10 — ownership, no invented
+  markers, and every claim backed by a real command/output. The reviewer does
+  not run cargo; compile evidence is the orchestrator's gate only.
+  ALIGNMENT: protects acceptance evidence 1 (ledger line 6) and matches base
+  pack R3 (no agent runs cargo during a write window).
+
+
+D3 [agent decision] - L2: triage CODE vs TEST against the locked contract.
+  DECISION: On a red test, quote the failing line and the contract clause,
+  decide which side is wrong, and change exactly one side. Never bend
+  production behavior to satisfy a bad assertion.
+  WHY: iterations 4, 5 and 11 were wrong tests, not wrong code: an aggregate
+  assertion, a dedup-order expectation contradicting key `(qualified_name,
+  line)`, and a `FnRecord` missing `file_path` (docs/ethics/lessons.md:51-68;
+  docs/workflows/test-failure-triage.md:9-11).
+  SOURCE: docs/ethics/lessons.md:18,51-68; docs/workflows/test-failure-triage.md:
+  3-19,21-42,53-66; .reports/reviews/lang-batch-triage.md:3,19,96-102
+  (CODE 7 / TEST 1 / BOTH 1 verdicts with contract clauses).
+  VALIDATION: docs/workflows/test-failure-triage.md:53-59 — the failing output
+  and a quoted contract clause are in the report, it says `CODE wrong` or
+  `TEST wrong`, only one side changed, the smallest check passed, then the
+  full suite passed once.
+  REVIEWER CHECK: W-reviewer items 9 and 10 — no scope drift and no claim
+  without a command/output or a quoted line; each finding names a current
+  `path:line` (W-reviewer lines 59-61).
+  ALIGNMENT: keeps the locked contract as the reference for acceptance
+  evidence 2 (ledger line 7) and agrees with base pack R6 (findings return to
+  the owner with exact output).
+
+
+D4 [agent decision] - L3: cross-OS paths are argv, not embedded strings.
+  DECISION: A process launched from one OS into another uses a path both sides
+  can reach. Pass paths as argv; prefer a native runtime in the lane that owns
+  the files; diagnose from captured stderr and the real exit code.
+  WHY: iterations 6-8 returned `data: null` because a generated runner embedded
+  `file:///tmp/...` that Windows Node could not resolve, and WSL mapped
+  `/tmp/...` to a nonexistent Windows path (docs/ethics/lessons.md:70-99).
+  SOURCE: docs/ethics/lessons.md:19,70-99;
+  docs/workflows/cross-environment-runner.md:3-21,23-31,32-57,59-67;
+  docs/drift.md:31 (D-1 real closure with `FNSCOPE_NODE` and native Node 24).
+  VALIDATION: docs/workflows/cross-environment-runner.md:59-67 — both
+  spellings of every cross-OS path are listed, paths that cross are argv, the
+  wait was bounded with a tracked PID, stderr and the exit code are verbatim,
+  and the scratch directory and process are gone.
+  REVIEWER CHECK: W-reviewer items 5 and 7 — no hardcoded drive/user paths and
+  bounded waits with tracked PIDs, checked against the brief's owned files.
+  ALIGNMENT: required for acceptance evidence 4 (ledger line 9, `curl.exe`
+  against the served API from Windows); no contract or schema change is
+  introduced to make a path work.
+
+
+D5 [agent decision] - L4: audit the data contract at every boundary.
+  DECISION: For manifest -> form -> POST -> runner -> export, name the producer
+  and consumer at each hop, capture one real payload per boundary, assert the
+  shape on both sides, and add one real end-to-end check. A green unit suite
+  is not a boundary check.
+  WHY: iteration 10 had `cargo test --workspace` still green with 71+ tests
+  while the browser audit captured `{"input":""}` producing
+  `sentence.replace is not a function` (docs/ethics/lessons.md:101-121;
+  docs/workflows/boundary-contract-audit.md:8-10).
+  SOURCE: docs/ethics/lessons.md:20,101-121;
+  docs/workflows/boundary-contract-audit.md:3-25,27-35,36-66,68-75;
+  docs/ethics/verification-honesty.md:48-52.
+  VALIDATION: docs/workflows/boundary-contract-audit.md:68-75 — every boundary
+  has a named producer and consumer, one real payload per boundary is quoted,
+  an adapter unit test exists, and one browser/HTTP end-to-end check ran; a
+  green unit suite is explicitly not enough (line 81).
+  REVIEWER CHECK: W-reviewer items 1 and 10 — locked schema unchanged and every
+  claim backed by a command/output; a source audit cannot stand in for the
+  captured payload (W-reviewer lines 117-121, "Known limits").
+  ALIGNMENT: protects acceptance evidence 4 (ledger line 9) without changing
+  the locked JSON schema at docs/contract/rust-api.md.
+
+
+D6 [agent decision] - L5: rendered behavior needs a real browser, not a read.
+  DECISION: Prove structural UI behavior by driving the actual control and
+  snapshotting the resulting DOM text and button counts, including paths that
+  remove or collapse state. Re-run the original failing scenario after a fix.
+  WHY: iteration 10's `.json` view reported `has_schemaVersion:false` and
+  `Jump ↑` collapsed `backButtons: 0`; reading fnscope_ui.tsx would not have
+  proven either. The iteration 13 re-audit reported "6 PASS, 0 FAIL"
+  (docs/ethics/lessons.md:123-135; docs/workflows/boundary-contract-audit.md:
+  12-15,61-63).
+  SOURCE: docs/ethics/lessons.md:21,123-135;
+  docs/workflows/boundary-contract-audit.md:12-15,36-66,68-75;
+  docs/ethics/verification-honesty.md:15-16,81-84.
+  VALIDATION: docs/workflows/boundary-contract-audit.md:61-63 — re-run the
+  original failing scenario after the fix; the `.reports/ui-browser.md`
+  re-audit -> "6 PASS, 0 FAIL" on `.json` metadata, `Jump ↑`/`Back` and invoke
+  args.
+  REVIEWER CHECK: W-reviewer item 10 with an explicit Known limit — a source
+  review cannot assert rendered DOM behavior; only the real browser audit is
+  that evidence (docs/ethics/verification-honesty.md:81-84).
+  ALIGNMENT: required for acceptance evidence 5 (ledger line 10) and agrees
+  with base pack R5 (verdicts tied to real evidence, not assertions).
+
+
+D7 [agent decision] - L6: the machine-readable status cell is the gate.
+  DECISION: Read the drift status cell, not the prose note. If a fix rides in
+  the same diff, the row must read `Resolved`; a paragraph that says
+  `Resolved` while the cell says `Open` is a failure.
+  WHY: iteration 13 found D-2 with `Open` in its status cell and a note already
+  saying `Resolved` (docs/ethics/lessons.md:137-147). `check-culture.sh`
+  enforces this with DRIFT_STATUS and DRIFT_NOTE (scripts/check-culture.sh:
+  146-206).
+  SOURCE: docs/ethics/lessons.md:22,137-147; docs/ethics/verification-honesty.md:
+  43-46; docs/drift.md:20,37; scripts/check-culture.sh:146-206.
+  VALIDATION: scripts/check-culture.sh:146-206 — `DRIFT_STATUS` accepts only
+  Open/Awaiting decision/Resolved and `DRIFT_NOTE` requires every `-> Resolved`
+  note to match a Resolved row; the gate fails if they disagree.
+  REVIEWER CHECK: W-reviewer item 11 — the gap was written to docs/drift.md
+  before the edit and the status cell agrees with its note.
+  ALIGNMENT: keeps docs/drift.md the truthful record of doc-vs-code gaps;
+  waiver of approval is not waiver of evidence (base pack line 321).
+
+
+D8 [agent decision] - L7: verify the current line before escalating.
+  DECISION: Open the file at its current revision, quote the line that is
+  still wrong and name the job that owns it. If the line is already fixed,
+  withdraw the concern in writing instead of escalating it.
+  WHY: iteration 12's brief describes a concern escalated after J06 had
+  already fixed the runner code; the escalation itself is not in the ledger
+  and is flagged as an evidence limit, not quoted as a fact
+  (docs/ethics/lessons.md:149-167,254-269).
+  SOURCE: docs/ethics/lessons.md:23,149-167,264-265;
+  docs/ethics/boundary-discipline.md:41-48,57-68;
+  docs/ethics/review-awareness.md:51-54.
+  VALIDATION: docs/ethics/boundary-discipline.md:57-68 — the finding shape
+  names FINDING / LOCATION / OWNER / EVIDENCE / ACTION TAKEN: none, with the
+  location copied from the current file, not from memory.
+  REVIEWER CHECK: W-reviewer lines 59-61 and item 9 — a finding without a
+  current `path:line` is a comment, and an out-of-scope concern is a finding
+  with an owner, not an edit.
+  ALIGNMENT: avoids false findings against work that is already green; keeps
+  the ownership boundary of AGENTS.md "Parallel work rule" intact.
+
+
+D9 [agent decision] - L8: a response field the UI renders is part of the API.
+  DECISION: Enumerate the response fields the UI reads and confirm each is
+  populated in a real response. A schema-valid but empty `trace` is still a
+  gap even when the data that is present is correct.
+  WHY: iterations 13-14 recorded `"trace":{}` in Node-mode responses, so step
+  trace badges never refreshed; the re-audit kept "PASS 6, FAIL 0" and the
+  minor observation as separate statements (docs/ethics/lessons.md:169-185;
+  docs/ethics/verification-honesty.md:54-58).
+  SOURCE: docs/ethics/lessons.md:24,169-185;
+  docs/workflows/boundary-contract-audit.md:17-21,55-57;
+  docs/ethics/verification-honesty.md:54-58.
+  VALIDATION: docs/workflows/boundary-contract-audit.md:55-57 — for every
+  response field the UI reads, confirm it is populated in a real response; an
+  empty `trace` is a gap even when the schema is valid.
+  REVIEWER CHECK: W-reviewer items 1 and 10 with a Known limit — the reviewer
+  reads source only and cites the orchestrator's real Node-mode capture as the
+  evidence that the field is populated.
+  ALIGNMENT: serves acceptance evidence 4 and 5 together (ledger lines 9-10)
+  by keeping the served API and the rendered UI in contract.
+
+
+D10 [agent decision] - L9: a new language is a plugin, not a branch in core.
+  DECISION: Adding a language changes only the adapter registry, the new
+  adapter and its fixtures/tests. If fnscope-core, the schema, the enricher or
+  the UI changed, stop and treat it as architecture drift.
+  WHY: iteration 16's contract update says "adding a language requires ZERO
+  changes to core graph builder, schema, enricher or UI" (ledger lines 178-188,
+  quoted at docs/ethics/lessons.md:187-200).
+  SOURCE: docs/ethics/lessons.md:25,187-200;
+  docs/concepts/language-adapter.md (referenced there);
+  docs/ethics/boundary-discipline.md:50-55.
+  VALIDATION: the integration diff confirms only the registry, the new adapter
+  and its fixtures/tests moved; a change to fnscope-core, the schema, the
+  enricher or the UI is architecture drift (docs/ethics/lessons.md:195-200).
+  REVIEWER CHECK: W-reviewer items 2 and 9 — ownership and no scope drift; the
+  worked example is `.reports/reviews/J21.md:19`: core has no per-language
+  match and one registry lookup per file.
+  ALIGNMENT: directly serves the expanded outcome at ledger line 181 and
+  acceptance evidence (1)-(5) at ledger line 182; no locked contract name is
+  renamed.
+
+
+D11 [agent decision] - L10: prove a check against a positive and a negative.
+  DECISION: A byte-level check lives in a script and is proven against a known
+  CRLF sample and a known LF sample before its green is trusted. Never hand
+  write a byte check inline across two shells. `CULTURE_OK` is trusted only
+  after `CULTURE_SELFTEST_OK`.
+  WHY: iteration 17's `CR_COUNT=0` came from `$"\r"` (a literal backslash-r),
+  which cannot match a CR byte; a corrected detector found six files still
+  carrying CR bytes. D-3 closes with the real detector output
+  (docs/ethics/lessons.md:202-224; docs/drift.md:39-43).
+  SOURCE: docs/ethics/lessons.md:26,202-224; docs/drift.md:39-43;
+  scripts/check-culture.sh:56-60,257-295; docs/workflows/README.md:15-20.
+  VALIDATION: `bash scripts/check-culture.sh --self-test` -> `CULTURE_SELFTEST_OK`
+  (ledger line 224, iteration 21); the same detector is applied to a known CRLF
+  positive and a known LF negative before `CULTURE_OK` is trusted
+  (scripts/check-culture.sh:389-420).
+  REVIEWER CHECK: W-reviewer item 8 — no invented verdict marker; every marker
+  in a report has a command and its real output next to it.
+  ALIGNMENT: keeps every reported gate honest (base pack R5) and explains why
+  the checker carries a self-test (D15); no verdict is claimed without a
+  command.
+
+
+D12 [agent decision] - L11: a format check is not a compile result.
+  DECISION: Never report `rustfmt --check` as `*_OK` evidence of compilation.
+  Normalize bytes with `tr -d '\r'` and verify with
+  `tr -cd '\r' < file | wc -c` equal to 0; never use `sed 's/\r$//'`, which in
+  this environment removes a literal trailing `r`. The reviewer does a
+  semantic-sanity read (checklist item 12) and cites only the orchestrator's
+  compile gate as compile evidence.
+  WHY: iteration 23 had `ALL_OWNED_RS_FMT_OK` and a reviewer PASS, then 12
+  `E0425` errors from identifiers losing their final `r` (`adapte`,
+  `declarato`, `inne`, `membe`). The false PASS stays in R-J21 as evidence
+  (docs/ethics/lessons.md:226-252; ledger lines 238-244).
+  SOURCE: docs/ethics/lessons.md:27,226-252; W-reviewer lines 85-97;
+  .reports/reviews/J21.md:2,27-28,38-79; .reports/reviews/J23-J24.md:15-17,31;
+  docs/drift.md:45-49.
+  VALIDATION: the orchestrator's real compile gate is the only compile
+  evidence — `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0` after J21's
+  identifiers were restored (ledger line 248; D-4 at docs/drift.md:49), with
+  `tr -cd '\r' < file | wc -c` -> 0 on all 13 files.
+  REVIEWER CHECK: W-reviewer item 12 — semantic sanity read for truncated or
+  undefined identifiers; a PASS means "no defect found by source audit", not
+  "compiles", and a later false PASS is recorded, never deleted (lines 89-97).
+  ALIGNMENT: protects acceptance evidence 1 (ledger line 6) and agrees with
+  base pack R6: a later gate that proves a PASS false is recorded, never
+  deleted.
+
+
+D13 [agent decision] - Reviewers have no implementation authority.
+  DECISION: One independent subagent audits one job's owned files and diff. It
+  does not write to them, does not run cargo, the full gate or a service, and
+  writes `PASS` or `FAIL` with `path:line` findings to
+  `.reports/reviews/<job-id>.md`. Only the orchestrator merges, and only after
+  PASS.
+  WHY: implementer self-reported green has twice been false evidence: J21's
+  `ALL_OWNED_RS_FMT_OK` plus J22's PASS still produced 12 compile errors
+  (ledger lines 230-244), and J25's independent review of Python/Go returned
+  FAIL with 10 findings before any merge (ledger lines 254-268). W-reviewer
+  lines 53-58 and 164-172 fix the role boundary.
+  SOURCE: W-reviewer lines 22-24,51-65,99-122,124-153,164-172;
+  docs/ethics/review-awareness.md:19-21; R-J21 lines 1-4,38-79;
+  .reports/reviews/J23-J24.md:1-17,49-62; .reports/reviews/J30-J32.md:1-18,92-98;
+  .reports/reviews/J35-J39.md:1-28.
+  ALIGNMENT: enforces base pack R3 (orchestrator owns review and gates) and
+  R6 (FAIL returns to the owner); changes who decides, never the locked
+  contract or acceptance evidence.
+
+
+D14 [agent decision] - Every brief states that the work will be reviewed.
+  DECISION: The implementer brief is self-contained: exact owned paths, the
+  independent-review sentence, the pasted checklist, a clean workspace and no
+  cargo. The sentence is used verbatim or near-verbatim: "You will be reviewed
+  by an independent subagent that has no implementation authority. It reads
+  your diff and your owned files; it does not edit them, and it does not run
+  the full gate. PASS is required before merge."
+  WHY: review-awareness.md lines 3-21 says the notice is given before the work
+  starts because it changes the work: clean diffs, smaller scope, honest
+  reports. W-reviewer lines 40-41 add that an unstated checklist item is not
+  enforceable against the implementer.
+  SOURCE: W-reviewer lines 26-49 (sentence at 34-38);
+  docs/ethics/review-awareness.md:3-21; ledger lines 214-220 (iteration 20
+  pivot: every subsequent brief states the review notice and pastes the
+  checklist).
+  ALIGNMENT: makes the three-part rule of D1 operable before any file is
+  written; agrees with AGENTS.md "Every piece of code has an origin" and with
+  base pack R3.
+
+
+D15 [agent decision] - check-culture.sh carries a self-test.
+  DECISION: The machine gate has a `--self-test` mode that builds a known CRLF
+  sample and a known LF sample in a temp directory, applies the exact same
+  detector as the gate, requires the positive to be detected and the negative
+  not to be, cleans up, and prints `CULTURE_SELFTEST_OK`. The gate itself prints
+  one PASS/FAIL line per mechanical rule and ends in `CULTURE_OK` or
+  `CULTURE_FAIL: <reason>`. No cargo, network or service.
+  WHY: the false green in L10 came from a matcher that could never see a CR
+  byte (docs/ethics/lessons.md:202-224); a checker that goes green on its
+  positive control is not evidence (docs/workflows/README.md:15-20).
+  SOURCE: scripts/check-culture.sh:1-4,56-60,84-94,146-206,257-295,301-314;
+  docs/ethics/lessons.md:26,213-224; docs/workflows/README.md:15-20;
+  ledger lines 222-224 (iteration 21 verification of both markers).
+  ALIGNMENT: makes acceptance evidence verifiable without weakening any gate;
+  the waiver in the header waives approval, not evidence (base pack line 321).
+
+
+D16 [agent decision] - Add the goal-skill delegated lane to the two skills.
+  DECISION: RECONSTRUCTED 2026-11-26. Add a "Goal-skill delegated lane"
+  section to `feature-pipeline/SKILL.md` (lines 34-67) and
+  `surgical-change/SKILL.md` (lines 33-69), and align it with
+  `goal/decisions.md` Case B and Authority. Decisions are written at decision
+  time with `[agent decision]`, WHY and SOURCE; alignment with the Goal
+  Contract and prior locked decisions is mandatory; human gates are waived
+  only by an explicit recorded waiver; the isolation gate is unchanged.
+  WHY: iteration 44 is a user process correction: "no human gates, but every
+  decision must be documented at decision time with why and source, aligned
+  with the goal contract and prior decisions; update feature-pipeline and
+  surgical-change to encode this" (main ledger line 404). The recorded failure
+  class is "process — the original build skipped per-feature origin docs"
+  (line 407), and the pivot is that past packs are RECONSTRUCTED with honest
+  labels and ledger citations (line 408).
+  SOURCE: main ledger lines 403-409 (iteration 44), 411-416 (iteration 45),
+  422 (iteration 46, verbatim waiver sentence in the header);
+  goal/decisions.md:40-58,83-100,102-110;
+  feature-pipeline/SKILL.md:34-67,131-138,161-192;
+  surgical-change/SKILL.md:33-69.
+  ALIGNMENT: delegation changes who decides, not where work happens or what
+  must be proven; this pack is an instance of that correction and does not
+  alter the locked contract, acceptance evidence or scope (ledger lines 4-14).
+
+
+D17 [agent decision] - Reconstruct honestly; never invent a quote or verdict.
+  DECISION: RECONSTRUCTED 2026-11-26. This pack quotes only text present in
+  cited files, labels reconstruction explicitly, and marks evidence limits
+  where a brief detail is not in the ledger. No gate marker is copied into a
+  new iteration and no user question is invented.
+  WHY: `goal/decisions.md` line 32 says "Never fabricate a verbatim user
+  question"; docs/ethics/verification-honesty.md lines 3-16 require a verdict
+  to name a command actually run; docs/ethics/lessons.md lines 254-269 shows
+  the pattern of marking details that cannot be confirmed instead of quoting
+  them as evidence.
+  SOURCE: goal/decisions.md:25-34; docs/ethics/verification-honesty.md:3-16,
+  60-73; docs/ethics/lessons.md:254-269;
+  docs/features/fnscope-base/GRILL.txt:159-189,291-321.
+  ALIGNMENT: keeps the base pack's evidence limit truthful after the main
+  ledger recorded the waiver sentence at iteration 46, and keeps every
+  decision in this pack aligned with prior locked decisions (base pack R1-R6).
+
+
+CLOSING NOTE
+------------
+These decisions are the origin of the culture/reviewer workflow. The
+behavioral form is in PRD-TRD-fnscope-culture-reviewers.md, the delivery
+phases and real markers are in IMPL-fnscope-culture-reviewers.md, and the
+post-impl simulation is simulate.sh. No open questions remain.
