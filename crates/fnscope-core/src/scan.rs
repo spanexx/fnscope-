@@ -27,7 +27,17 @@ impl Default for ScanOptions {
         Self {
             target_dir: PathBuf::from("."),
             includes: vec![
-                "**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.rs", "**/*.py", "**/*.go",
+                "**/*.ts",
+                "**/*.tsx",
+                "**/*.js",
+                "**/*.jsx",
+                "**/*.rs",
+                "**/*.py",
+                "**/*.go",
+                "**/*.java",
+                "**/*.c",
+                "**/*.cpp",
+                "**/*.cc",
             ]
             .into_iter()
             .map(str::to_owned)
@@ -516,10 +526,22 @@ mod tests {
         assert_eq!(options.target_dir, PathBuf::from("."));
         assert_eq!(
             options.includes,
-            vec!["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.rs", "**/*.py", "**/*.go",]
-                .into_iter()
-                .map(str::to_owned)
-                .collect::<Vec<_>>()
+            vec![
+                "**/*.ts",
+                "**/*.tsx",
+                "**/*.js",
+                "**/*.jsx",
+                "**/*.rs",
+                "**/*.py",
+                "**/*.go",
+                "**/*.java",
+                "**/*.c",
+                "**/*.cpp",
+                "**/*.cc",
+            ]
+            .into_iter()
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
         );
         for pattern in [
             "**/node_modules/**",

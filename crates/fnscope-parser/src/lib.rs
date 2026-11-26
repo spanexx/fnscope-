@@ -3,8 +3,11 @@
 
 pub mod adapter;
 pub mod body;
+pub mod c_lang;
+pub mod cpp;
 pub mod discover;
 pub mod golang;
+pub mod java;
 pub mod python;
 pub mod rust;
 pub mod types;

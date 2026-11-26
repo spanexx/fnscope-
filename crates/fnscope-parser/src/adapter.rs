@@ -10,7 +10,10 @@ use std::collections::BTreeMap;
 
 use fnscope_model::ReturnShape;
 
+use crate::c_lang::CAdapter;
+use crate::cpp::CppAdapter;
 use crate::golang::GoAdapter;
+use crate::java::JavaAdapter;
 use crate::python::PythonAdapter;
 use crate::rust::RustAdapter;
 use crate::types::{BodyAnalysis, DiscoveredFn, Lang};
@@ -63,7 +66,8 @@ impl Registry {
         Self::default()
     }
 
-    /// Create the built-in registry: TypeScript, TSX, JavaScript, JSX, Rust, Python and Go.
+    /// Create the built-in registry: TypeScript, TSX, JavaScript, JSX, Rust,
+    /// Python, Go, Java, C and C++.
     pub fn with_builtin_adapters() -> Self {
         let mut registry = Self::new();
         registry.register(Box::new(TypeScriptAdapter::new(Lang::TypeScript)));
@@ -73,6 +77,9 @@ impl Registry {
         registry.register(Box::new(RustAdapter));
         registry.register(Box::new(PythonAdapter::new()));
         registry.register(Box::new(GoAdapter::new()));
+        registry.register(Box::new(JavaAdapter::new()));
+        registry.register(Box::new(CAdapter::new()));
+        registry.register(Box::new(CppAdapter::new()));
         registry
     }
 
@@ -115,6 +122,10 @@ mod tests {
             ("rs", "rust"),
             ("py", "python"),
             ("go", "go"),
+            ("java", "java"),
+            ("c", "c"),
+            ("cpp", "cpp"),
+            ("cc", "cpp"),
         ] {
             let adapter = registry
                 .for_extension(extension)

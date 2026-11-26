@@ -291,6 +291,45 @@ Failure class: grammar-version AST wrapper mismatch; test expectation contradict
 Pivot: no blind "make the test pass" — each side changed only where the contract demands.
 Next: re-merge, gate, mixed polyglot scan, culture check, commit.
 
+### 30 — 2026-11-26
+Action: Committed the Python/Go language batch (`01062af`, 29 files); confirmed all remaining grammar crates available (java 0.23.5, kotlin 0.3.8, c 0.24.2, cpp 0.23.4, c-sharp 0.24.0, ruby 0.23.1, php 0.25.2, swift 0.7.4). Created three isolated worktrees and dispatched J30 (Java), J31 (C), J32 (C++) with review notices, wrapper-node warnings and `tr`-only CR checks.
+Verification before commit: 127 tests green, `ALL_TESTS_OK`, `CULTURE_OK`, mixed polyglot scan 28 functions across 5 extensions with 0 dangling edges, D-5 Resolved.
+Verdict: pass for committed batch; Java/C/C++ in progress.
+Failure class: none in this iteration.
+Pivot: none.
+Next: review J30-J32, register them in one job, gate, commit; then Kotlin/C#/Ruby/PHP/Swift batch.
+
+### 31 — 2026-11-26
+Action: Java (18 tests), C (11 tests) and C++ (14 tests) adapters completed in isolated worktrees; orchestrator dispatched J33, one independent reviewer across all three with the L11 semantic-sanity item.
+Verification reported (not trusted until review+gate): all three implement the six trait methods, handle grammar wrapper nodes explicitly, CR=0 via `tr`, format checks labelled format-only. Each listed exact external registration edits.
+Verdict: pending independent review
+Failure class: none recorded yet
+Pivot: single registration job after review, as before.
+Next: read `.reports/reviews/J30-J32.md`, route findings, register, gate, mixed scan, commit.
+
+### 32 — 2026-11-26
+Action: J33 reviewed Java/C/C++ with PASS (0 findings); dispatched J34 registration worktree; while it runs, created five isolated worktrees and dispatched J35-J39 for Kotlin, C#, Ruby, PHP and Swift with review notices, wrapper-node warnings, grammar-constant verification and `tr`-only LF checks.
+Verdict: in progress
+Failure class: none recorded yet
+Pivot: language adapters are always built in separate worktrees; one registration job owns the shared registry files so parallel jobs never collide.
+Next: integrate J34 + Java/C/C++, gate and commit; review/register the final five; full polyglot scan across all ten languages.
+
+### 33 — 2026-11-26
+Action: Merged Java/C/C++ adapters + J34 registration with `tr`-verified LF; ran the compile gate.
+Verification: `cargo test --workspace` -> `ADAPTER_GATE_STATUS=101`; seven E0597 iterator-temporary errors (c_lang/body.rs 207,398,881; cpp/body.rs 190,201; java/body.rs 211,445). L1 class again.
+Verdict: fail (compile)
+Failure class: iterator temporary outliving cursor at tail expressions.
+Pivot: exact compiler locations sent back to J30/J31/J32; no orchestrator code edits.
+Next: re-merge, re-gate, mixed scan, commit Java/C/C++; then process the final five adapters.
+
+### 34 — 2026-11-26
+Action: Re-merged Java/C/C++ lifetime fixes and re-gated; compile green, 2 test failures.
+Verification: `ADAPTER_GATE_STATUS=101`; parser 111 passed / 2 failed: C doc description kept `*/` (code bug) and Java `when` had parentheses while the test expected none (likely test bug, pending sibling verification).
+Verdict: fail (2 assertions)
+Failure class: comment delimiter leak; contract-parity expectation mismatch.
+Pivot: sent exact outputs to J31 and J30 with an explicit code-vs-test decision request for Java.
+Next: re-merge, gate, polyglot scan across 8 languages, commit; then final five adapters.
+
 ### Review notes (orchestrator)
 - J01 (model) reviewed: exact camelCase serde names, aggregated `validate`, 10 tests. One accepted deviation: uppercase hex accepted in `astHash` (still 64 hex chars). No conflict.
 - J09 (fixture) reviewed: 8 core functions, explicit `.ts` imports, `dryRun` path for safe invoke.
