@@ -37,6 +37,8 @@ The original product spec lives in `fnscope_architecture_agent_build_spec.md`; t
   commits, then removes the worktree.
 - **Stage explicitly:** `git add <specific paths>`. Never `git add -A`, never stage a file you
   have not read. A commit must not contain another job's half-written work.
+- **No code commit without its origin pack** — `scripts/check-culture.sh` enforces
+  GRILL/PRD-TRD/IMPL presence and decision records.
 - **Review checklist before every commit:** locked contract names unchanged, JSON schema stable,
   `///` comments on public items, tests for new behavior, no hardcoded absolute paths, LF endings,
   drift log updated if a doc-vs-code gap was found.

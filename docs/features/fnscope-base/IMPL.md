@@ -192,3 +192,80 @@ browser, reconcile any findings into `docs/drift.md`, and clean up.
   before the next edit. Challenge the contract; do not quietly please it.
 - Each agent reports files written, public API added, tests added, and any
   deviation from the contract.
+
+## Delivery notes (reconstructed 2026-11-26)
+
+Dates, commit hashes and verdict markers below are taken from the orchestrator
+ledger `.reports/goal-build-fnscope.md`; they are recorded observations, not
+claims made by this documentation job. No cargo was run to write this section.
+
+- **2026-11-25 - base build, iterations 1-14 (J01-J14).** Iteration 2 wrote the
+  root workspace, contract, stubs and the eleven-job decomposition
+  (`IMPL.md:16-53`, ledger lines 60-66). Gate history: iteration 3
+  `CARGO_CHECK_STATUS=101` with 7 parser errors, returned to J02/J03; iteration
+  4 one wrong model assertion, returned to J01; iteration 5 one wrong parser
+  assertion, returned to J02; iterations 6-7 cross-environment Node path
+  failures, returned to J06; iteration 8 `CARGO_TEST_STATUS=0` with 66 tests,
+  `FMT_STATUS=0` and `ALL_TESTS_OK` (`MANIFEST_OK: 9 functions, 8 call edges`,
+  `SERVER_SMOKE_OK`); iteration 9 `ENRICH_E2E_OK`; iteration 10 browser audit
+  found 3 UI/API bugs; iterations 11-14 repaired and re-gated them. Close
+  verdict at iteration 14 lines 156-168: `cargo fmt --all -- --check` -> 0,
+  `cargo test --workspace` -> 0 with 72 tests, `ALL_TESTS_OK`,
+  `ENRICH_E2E_OK`, browser re-audit 6 PASS / 0 FAIL, cleanup with no CRLF and
+  no leftover ports or scratch dirs. No commit was made at this point; line
+  168 records the commit as a human gate.
+
+- **2026-11-26 - first committed record of the base, iteration 17.** Ledger
+  lines 190-192: `git log --oneline` shows `ff793af docs: record verified base
+  build and Rust addendum plan` and, on top of it, `4c26063 docs: turn build
+  mistakes into enforceable ethics and workflows`. Verification marker on that
+  batch: `CR_COUNT=0` after LF normalization (later exposed as a false green
+  and closed as D-3). Caveat from `docs/STATUS.md:375-376`: a later history
+  rewrite superseded these early hashes - `4c26063` is no longer present and
+  the culture batch appears as `fa5419e`. Hashes here are quoted as the ledger
+  recorded them at the time.
+
+- **2026-11-26 - engine and Rust backend batch, iteration 20.** Ledger lines
+  214-220: `a961c53 feat: fnscope engine, CLI, server, UI and Rust backend`
+  (62 files, explicit staging). Markers: `RUST_GATE2_STATUS=0`, parser 35
+  tests; real scan of `tests/fixtures/rust_app` -> 7 functions, 12 steps, 2
+  calledBy edges, 0 dangling; real scan of `crates/` -> 188 functions, 722
+  steps, 243 calledBy edges, 0 dangling.
+
+- **2026-11-26 - culture gate batch, iteration 21.** Ledger lines 222-228:
+  `ec2e8b0 docs: enforce reviewed-workflow culture and prove the culture
+  gate`. Markers: `bash -n scripts/check-culture.sh` -> exit 0,
+  `CULTURE_SELFTEST_OK`, eight `[PASS]` lines and `CULTURE_OK`; D-3 moved from
+  Open to Resolved with the real command and output quoted in `docs/drift.md`.
+
+- **2026-11-26 - adapter registry, iteration 24.** Ledger lines 246-252:
+  `a6f5cde refactor: pluggable language adapter registry`. Markers:
+  `ADAPTER_GATE_STATUS=0` with 101 tests (parser 44) and J22 re-review
+  `Verdict (re-review): PASS` with 0 findings after D-4 was closed. Iteration
+  23's earlier false PASS was kept in `.reports/reviews/J21.md` as evidence.
+
+- **2026-11-26 - Python/Go batch, iteration 30.** Ledger lines 294-300:
+  `01062af` (29 files). Markers: 127 tests green, `ALL_TESTS_OK`, `CULTURE_OK`,
+  mixed scan of 28 functions across 5 extensions with 0 dangling edges, D-5
+  Resolved.
+
+- **2026-11-26 - Java/C/C++ batch, iteration 35.** Ledger lines 333-338:
+  `5408cad`. Markers: gate green with 130 tests; 8-language mixed scan with
+  46 functions, 105 steps, 19 resolved calls and 0 dangling edges.
+
+- **2026-11-26 - final five adapters, iteration 42.** Ledger lines 387-393:
+  `d6b02cf feat: Kotlin, C#, Ruby, PHP and Swift language adapters`. Markers:
+  `ADAPTER_GATE_STATUS=0` with 233 tests (parser 176); 13-language scan with
+  78 functions, 159 steps, 33 resolved calls, 38 caller edges, 23 error facts
+  and 0 dangling edges; `CULTURE_OK`, `ALL_TESTS_OK`, D-6 Resolved.
+
+- **2026-11-26 - delivery, iteration 43.** Ledger lines 395-401: `fbb10f9
+  docs: record polyglot completion and current state` (11 files), then
+  `git push -u origin main` -> `PUSH_STATUS=0` and `PUSH_VERIFIED`.
+
+- **2026-11-26 - origin reconstruction (J47, this job).** Added the
+  reconstructed decision record and human-gates note to `GRILL.txt`, the
+  behavioral and simulation contract sections to `PRD-TRD.md`, this delivery
+  section, and the canonical and pre-implementation simulation scripts in this
+  folder. This job wrote documentation only: no cargo, no gate claim, no
+  commit, and no edit outside `docs/features/fnscope-base/`.

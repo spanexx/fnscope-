@@ -1,0 +1,282 @@
+fnscope-python-go — GRILL (requirements lock, reconstructed)
+=============================================================
+
+RECONSTRUCTED 2026-11-26. This file was written after J23-J27 shipped. It is
+NOT a pre-impl artifact and must not be read as one. Every claim below is tied
+to a ledger iteration, a review finding, or a file:line in this repository.
+No quote is invented and no date is backdated.
+
+Status: Locked
+Decisions by: agent (delegated by user, 2026-11-26)
+Human gates waived by user, 2026-11-26. Verbatim user sentence, carried in the
+J50 job brief (see EVIDENCE LIMITS — it is not claimed to be a ledger line):
+
+  "It's okay, you don't need a human approval. You can do it, but I just want you to document your decisions and why you made the decisions as you go."
+
+The older delegated-authority sentence is verbatim in
+`.reports/goal-build-fnscope.md`, line 12:
+
+  "ask me no questions make all decisions yourself"
+    -- Authority: delegated (user: ...).
+
+AUTHORITY RULE (read before any entry)
+--------------------------------------
+No question was asked of the user for this pack and no answer was confirmed
+with the user. Every LOCKED ANSWER below is an [agent decision] made under the
+delegated authority quoted above. The words in quotation marks are evidence
+quotes from the ledger, a review, the locked spec, a repo file, or the J50 job
+brief — never invented user receipts. Where the evidence does not support a
+stronger claim,
+the limit is stated under EVIDENCE LIMITS at the end.
+
+
+DECISION 1 — Python and Go are the first polyglot additions after Rust
+----------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Add Python and Go as the first two non-Rust, non-TS/JS backends, each as a
+  standalone adapter under `crates/fnscope-parser/src/{python,golang}/`, with
+  no branch in the core graph builder. They ship together in one commit;
+  later languages (Java, C, C++, etc.) are separate batches.
+
+WHY
+  The first non-TS/JS backend was Rust (J15-J18), requested after the user
+  asked to scan `crates/`. The goal was then expanded to polyglot support
+  with a pluggable backend architecture. Python and Go are the next two
+  languages named in that expanded outcome, and the adapter registry (J21)
+  supplied the seam that makes adding them a plugin rather than a core edit.
+
+SOURCE
+  Ledger iteration 15 (`.reports/goal-build-fnscope.md:170-176`) — Rust is the
+  first added backend, J15-J18.
+  Ledger iteration 16 (`:178-188`) — expanded outcome: "fnscope scans Rust,
+  TS/JS, Python, Go and the standard language set with accurate function
+  graphs and execution steps; adding a language requires ZERO changes to core
+  graph builder, schema, enricher or UI"; acceptance evidence (3) "a mixed
+  polyglot fixture scans correctly in one manifest".
+  Ledger iteration 24 (`:246-252`) — "began polyglot language batches",
+  isolated Python and Go worktrees, dispatched J23/J24.
+  Ledger iteration 25 (`:254-260`) — implementers reported Python 10 tests,
+  Go 16 tests.
+  Ledger iteration 30 (`:294-300`) — commit `01062af`, 29 files.
+  `docs/STATUS.md:144-145` — `.py` -> module `python`, id `python`, 10 tests;
+  `.go` -> module `golang`, id `go`, 16 tests.
+
+ALIGNMENT
+  Goal outcome item 1 and acceptance evidence (1) and (3) in iteration 16:
+  every backend green under `cargo test --workspace`, and one mixed manifest.
+  Iteration 30 records the mixed polyglot scan: 28 functions across 5
+  extensions with 0 dangling edges.
+
+
+DECISION 2 — Grammar wrapper nodes are the root cause of the nine test failures
+------------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Fix the AST walks, not the assertions, where the failure was a grammar
+  wrapper node: unwrap `expression_statement` in Python discovery,
+  `statement_list` in Go body analysis, and `field_declaration_list` in Go
+  struct field indexing. Keep the fallback that uses the original node when no
+  wrapper is present.
+
+WHY
+  The grammar crates (tree-sitter-python/go 0.25) insert wrapper nodes between
+  a block or module and the statements the adapters expected as direct
+  children. The adapters checked only direct children, so aliases, struct
+  fields and top-level steps were never visited. Node kinds had been checked
+  against cached grammar sources, but runtime shapes were not exercised until
+  the real gate ran.
+
+SOURCE
+  Ledger iteration 28 (`.reports/goal-build-fnscope.md:278-284`) — 9 adapter
+  test failures and the decision to triage CODE vs TEST read-only.
+  Ledger iteration 29 (`:286-292`) — "root causes were grammar wrapper nodes
+  (`statement_list`, `field_declaration_list`, `expression_statement`) plus
+  one contract-breaking test expectation".
+  Review `.reports/reviews/lang-batch-triage.md:21-26` — root causes and the
+  three required fixes; `:43`, `:51`, `:93` — cached 0.25.0 `node-types.json`
+  evidence for each wrapper.
+  Shipped code: `crates/fnscope-parser/src/python/discover.rs:280-281`
+  (`expression_statement` unwrap in `type_index`), `python/body.rs:186-189`
+  (`statement_expression` helper), `golang/body.rs:90-95` (`statement_list`
+  unwrap in `analyze`), `golang/discover.rs:289-294` (`field_declaration_list`
+  unwrap in `fields_from_struct`).
+
+ALIGNMENT
+  Iteration 16 acceptance evidence (1) green tests for every backend and (3)
+  correct mixed-manifest steps. Drift D-5 closure records 127 tests green and
+  the mixed scan with 0 dangling edges (`docs/drift.md:55`).
+
+
+DECISION 3 — Call vs Transform: spec section 4 step 3 beats a test expectation
+-----------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  A variable/short declaration whose initializer invokes a function is a
+  `call` step, not a `transform`. Where a test encoded `Transform`, change the
+  test; where production also misclassified it, change both. Do not relax
+  production to make the old expectation pass.
+
+WHY
+  The locked spec classifies `transform` as data work "without external
+  calls", and its own schema example labels `const tokens = tokenize(...)`
+  as `"kind": "call"`. One Go local doc line said `short_var_declaration`
+  mapped unconditionally to Transform; that doc was drift, not authority.
+
+SOURCE
+  Locked spec `fnscope_architecture_agent_build_spec.md:75-82` — step 3
+  definitions; `:151-161` — schema example `"kind": "call"` for
+  `"code": "const tokens = tokenize(input.sentence)"`.
+  Triage `.reports/reviews/lang-batch-triage.md:70-78` — Go case decided
+  BOTH: unwrap the wrapper, change `step_kind()` to return `Call` when
+  `has_call(statement)`, and change the expected array to
+  `[Branch, Call, Call, Return]`; `:96-102` — Python case decided TEST,
+  expected vector becomes `[Call, Branch, Call, Return]`, production diff
+  must be empty.
+  Drift `docs/drift.md:51-55` — D-5 opened for the Go doc/code drift and
+  closed with the real gate.
+  Shipped code `crates/fnscope-parser/src/golang/body.rs:328-334`; corrected
+  doc `docs/contract/adapters/go.md:46`.
+
+ALIGNMENT
+  The locked contract is the requirement source, so "accurate execution
+  steps" in iteration 16's outcome wins over an old assertion. Acceptance
+  evidence: D-5 closed as Resolved and 127 tests green before the batch
+  commit (`docs/drift.md:55`, ledger iteration 30).
+
+
+DECISION 4 — Why reviewers failed first, then caught compile errors
+-------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Treat a format or syntax check as evidence of formatting only. Reviewers
+  report "PASS (source)" for a semantic read, never "compiles"; the
+  orchestrator alone runs the compile gate. Every reviewer brief carries the
+  L11 semantic-sanity item (truncated identifiers, wrong arity, undefined
+  locals) and byte checks use `tr`, never `sed 's/\r$//'`.
+
+WHY
+  On J21 the implementer's `rustfmt --check` and an independent reviewer's
+  PASS were both false evidence: the merge produced 12 `E0425` errors from
+  identifiers that had lost a trailing `r`. In this batch the hardened review
+  caught Python's nine E0308 wrong-argument sites by source inspection, and
+  the orchestrator's real gate then caught six E0597 iterator-temporary
+  errors that no source audit had claimed to rule out. The rule is L11: a
+  syntax/format check is NOT a correctness check.
+
+SOURCE
+  `docs/ethics/lessons.md:27`, `:226-252` — L11 incident and rule;
+  `:17`, `:29-49` — L1 bounded write windows; `:26`, `:202-224` — L10 byte
+  checks proven against positive and negative controls.
+  Ledger iteration 23 (`.reports/goal-build-fnscope.md:238-244`) — J21 false
+  PASS, then 12 `E0425` errors; iteration 26 (`:262-268`) — J25 review FAIL
+  with F1, nine E0308 sites; iteration 27 (`:270-276`) — gate `status=101`,
+  six E0597 errors.
+  Review `.reports/reviews/J23-J24.md:15-17`, `:31`, `:46`, `:51`, `:78` —
+  no cargo run, "PASS (source)" limit, and the F1 type defect.
+
+ALIGNMENT
+  Iteration 16 acceptance evidence (1) `cargo test --workspace` green for
+  every backend. L11 makes the gate, not the format marker, the proof of that
+  evidence; L1 keeps agents from running cargo while peers write.
+
+
+DECISION 5 — Registration deferred to one separate reviewed job
+---------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  The Python and Go adapter worktrees own only their module files, contract
+  docs and fixtures. They record the exact registry edits they need but make
+  none. One later orchestrator-delegated job (J26) applies both registrations
+  in the shared files: manifests, `lib.rs`, `adapter.rs`, core default globs.
+
+WHY
+  Two worktrees editing `adapter.rs` or `Cargo.toml` at the same time would
+  overwrite each other. Deferring registration also keeps the adapter
+  packages reviewable on their own and lets a single gate verify the combined
+  wiring. The Python fixture's `"py"` sentinel assertion in `adapter.rs:124`
+  was a known blocker that only the registration job could retire.
+
+SOURCE
+  Ledger iteration 24 (`.reports/goal-build-fnscope.md:251`) — "registration
+  of both adapters deferred to one separate job so the two worktrees never
+  edit the registry file" (same pivot at iteration 25, `:259`); iteration 26
+  (`:263`) — J26 dispatched for F3/F5-F8.
+  Review `.reports/reviews/J23-J24.md:64-74` — numbered "Registration notes"
+  listing the exact external edits, none belonging in J23/J24.
+  Shipped module headers `crates/fnscope-parser/src/python/mod.rs:5-6` and
+  `golang/mod.rs:5-6` — "registration is a separate, reviewed job".
+
+ALIGNMENT
+  L1 bounded write windows (`docs/ethics/lessons.md:29-49`) and the commit
+  culture rule "one logical change = one commit". The whole adapter batch
+  lands as `01062af` with registry and glob edits included.
+
+
+DECISION 6 — Module named `golang` because `go` is a Rust keyword
+-----------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Directory and module are `crates/fnscope-parser/src/golang/`. The public
+  type stays `GoAdapter`; the registry id and extension stay `"go"`/`"go"`.
+  The internal module name never leaks into the manifest.
+
+WHY
+  `go` is a reserved Rust keyword and cannot be a module identifier. Renaming
+  the public id would break the stable suffix contract and the manifest
+  schema, so only the internal module name changes.
+
+SOURCE
+  `crates/fnscope-parser/src/golang/mod.rs:3-6` — "The directory is named
+  `golang` because `go` is a Rust keyword and cannot be used as a module
+  identifier"; `:37-45` — `id()` `"go"`, `extensions()` `&["go"]`.
+  `docs/contract/adapters/go.md:12-15` — same rule and stable id.
+  `docs/STATUS.md:145` — suffix `.go`, module `golang`, id `go`.
+
+ALIGNMENT
+  Iteration 16's zero-core-change invariant: the language is a plugin module;
+  the user-visible contract keeps the natural `"go"` name.
+
+
+DECISION 7 — No `.h` suffix is claimed
+--------------------------------------
+LOCKED ANSWER [agent decision]
+  `PythonAdapter::extensions()` is `&["py"]` and
+  `GoAdapter::extensions()` is `&["go"]`. Neither adapter claims a header or
+  declaration-file suffix; Python and Go have no C-style header language,
+  and the project's header rule (from the C adapter) is to avoid duplicate
+  declarations.
+
+WHY
+  Claiming a declaration-only suffix would index the same callable twice with
+  different ids and pollute the bidirectional call graph. Suffixes are stored
+  without a leading dot and are lowercased by `Registry::for_extension`, so
+  `"py"` and `"go"` already resolve `.py`, `PY`, `.go` and `GO`.
+
+SOURCE
+  `crates/fnscope-parser/src/python/mod.rs:40-43` — bare `py`, with the
+  registry trim comment; `docs/contract/adapters/go.md:22` — bare `go`,
+  case-insensitive resolution; `docs/contract/adapters/c.md:23-27` —
+  "Header files are not claimed", with the duplicate-id rationale;
+  `docs/STATUS.md:137-153` — the complete suffix -> adapter table names no
+  header suffix for any language.
+
+ALIGNMENT
+  Avoids duplicate ids and dangling edges, supporting iteration 16 evidence
+  (3) "a mixed polyglot fixture scans correctly in one manifest".
+
+EVIDENCE LIMITS
+---------------
+- No verbatim Q&A exists for this pack. The human-gate waiver sentence at the
+  top is quoted verbatim from the J50 job brief; it is not present in any
+  committed file in this worktree and no ledger line is claimed for it. This
+  matches the EVIDENCE LIMIT note in `docs/features/fnscope-base/GRILL.txt`.
+  The only user sentence with a committed source is the delegated authority at
+  `.reports/goal-build-fnscope.md:12`. Every answer above is an agent decision,
+  which is why the file is labelled RECONSTRUCTED 2026-11-26 rather than dated
+  to an earlier session.
+- No pre-impl simulation artifact exists in the evidence. The archived
+  `simulate-pre.reconstructed.sh` is an explicitly labelled design-time
+  placeholder, not a recovered historical script.
+- The reviewer could match only test counts (Python 10, Go 16), not individual
+  test names (`.reports/reviews/J23-J24.md:79`).
+- "PASS (source)" in the J23-J24 review means no defect found by source
+  audit; it is explicitly not a compile verdict (`:78`). Compile evidence is
+  the orchestrator gate recorded in ledger iterations 27-30.
+- No Python/Go file in this batch discusses `.h` directly. Decision 7 is
+  reconstructed from the bare-suffix contract in the two adapter docs and
+  the explicit header rule in the C adapter contract.

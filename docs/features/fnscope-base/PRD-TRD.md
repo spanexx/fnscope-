@@ -268,3 +268,96 @@ Recorded by the orchestrator in WSL Debian after the final adapter batch:
 - Drift D-1 through D-6 are all `Resolved` in `docs/drift.md`.
 
 More detail, including known limits, is in `VERIFY.md`.
+
+## Behavioral spec
+
+Operator-visible actions, with the exact command and what the operator sees.
+Commands run from the repository root in WSL Debian unless a Windows
+`curl.exe` call is named. These are the actions the canonical simulation in
+`docs/features/fnscope-base/simulate.sh` demonstrates.
+
+1. Build. `cargo build --release -p fnscope` produces `target/release/fnscope`.
+   Source: README.md lines 11-16; the release build is stage three of
+   `bash scripts/test-all.sh` (lines 18-19).
+
+2. Scan. `./target/release/fnscope scan ./tests/fixtures/sample_app/src --out .fnscope`
+   writes `.fnscope/fn-graph.json`. The operator sees concise progress lines
+   and, in the manifest, `tool: "fnscope"`, `schemaVersion: "1.0.0"`, a
+   non-empty `functions` array with unique ids, ordered `steps`, `calledBy`
+   edges and `sha256:` hashes. `bash scripts/scan-fixture.sh` prints
+   `FIXTURE_SCAN_OK` (lines 29-91); the full gate prints
+   `MANIFEST_OK: 9 functions, 8 call edges` inside `ALL_TESTS_OK`
+   (VERIFY.md line 13).
+
+3. Open and inspect HTTP.
+   `./target/release/fnscope open ./tests/fixtures/sample_app/src --port 4310 --host 127.0.0.1 --no-watch --invoke simulate`
+   serves the explorer; then:
+   - `curl.exe http://127.0.0.1:4310/api/health` ->
+     `{"ok":true,"tool":"fnscope"}` (this document, lines 128-138).
+   - `curl.exe http://127.0.0.1:4310/` -> explorer HTML containing `id="root"`.
+   - `curl.exe http://127.0.0.1:4310/api/fn-graph.json` -> the manifest JSON.
+   - `curl.exe -H "Content-Type: application/json" -d "{\"fnId\":\"<id>\",\"args\":{}}" http://127.0.0.1:4310/api/invoke`
+     -> `ok: true` plus a `trace` object (scripts/smoke-server.sh lines
+     92-137).
+   The server is a separate step from the tests and is stopped after the
+   probes; a server and a test are never in one command (AGENTS.md, "Command
+   lane").
+
+4. View modes, breadcrumb and sandbox. In the browser, switch Raw / Split /
+   Preview / 1-Hop Map, click a caller or callee in the 1-Hop Map, use
+   `Jump ↑` and `Back` on the call-path breadcrumb, and press Run in the
+   invoke panel. Observable: graph-level metadata in the `.json` Raw view, a
+   three-column 1-Hop Map, a breadcrumb trail that keeps `Back`, and a real
+   Node invoke (`clamp -> 10`) with no post-Run `simulated: true`. Source:
+   this document lines 110-126; ledger iteration 13 at
+   `.reports/goal-build-fnscope.md` line 150; `VERIFY.md` lines 15 and 31-34.
+
+5. Enrich. Set one of `OPENAI_API_KEY`, `GEMINI_API_KEY` or
+   `ANTHROPIC_API_KEY`, then
+   `./target/release/fnscope scan <src> --out <dir> --enrich --model NAME`
+   writes `.fnscope/enrich-cache.json` keyed by `astHash`. With the local
+   mock backend, `bash scripts/enrich-e2e.sh` prints `ENRICH_E2E_OK`: 9
+   first-run calls, 0 on an unchanged rescan, 0 after a formatting-only edit,
+   and a new call after a semantic edit (VERIFY.md line 14, README.md lines
+   99-108).
+
+6. Policy check. Run `node scripts/check-manifest.mjs <manifest>`. It prints
+   `MANIFEST_OK: <n> functions, <e> call edges` and fails if any non-null
+   `calledBy[].fnId` or `steps[].callsFnId` does not resolve to a function id
+   (scripts/check-manifest.mjs lines 92-135). Recorded scans report 0
+   dangling edges: 9 functions / 8 edges for the fixture (VERIFY.md lines
+   24-26) and 78 functions across 13 languages for the polyglot scan
+   (VERIFY.md line 60).
+
+## Simulation contract
+
+The canonical simulation (`docs/features/fnscope-base/simulate.sh`) must
+demonstrate these scenarios. It uses the real release/debug binary when one is
+present; otherwise it runs a documented placeholder mode that prints SKIP and
+never a fabricated PASS. It does not invoke cargo, and its verdicts are local
+observations rather than a re-run of the recorded gates.
+
+- S1 - scan -> manifest valid. Run the real binary against
+  `tests/fixtures/sample_app/src`, require `fn-graph.json` to parse, to have
+  `tool = "fnscope"`, `schemaVersion = "1.0.0"`, non-empty unique function ids,
+  `sha256:` hashes and unique `step-N` ids (scripts/check-manifest.mjs lines
+  23-89).
+- S2 - serve. Start `fnscope open` on a checked port with `--no-watch`, poll
+  `/api/health` at most 40 times at 0.25 s apart, fetch `/` and
+  `/api/fn-graph.json`, POST one `/api/invoke` using an id from that manifest,
+  require `ok: true` and a `trace` object, then stop the server through its
+  tracked PID (scripts/smoke-server.sh lines 65-142).
+- S3 - policy. Run the manifest checker a second time and report the edge
+  count as evidence that no call edge dangles (scripts/check-manifest.mjs
+  lines 92-135).
+- S4 - verdicts. Print one `[PASS]` or `[FAIL]` line per scenario; end with
+  `CANONICAL_SIM_OK` only when all scenarios pass, `CANONICAL_SIM_FAIL`
+  otherwise, and `CANONICAL_SIM_PLACEHOLDER` when no binary is available.
+- Bounds and cleanup. Every wait is bounded; the server is killed by its
+  tracked PID with descendants first; scratch files live outside the repo;
+  no `.fnscope` directory is left behind (AGENTS.md, "Command lane";
+  scripts/smoke-server.sh lines 18-60).
+
+The design-time mirror is
+`docs/features/fnscope-base/archive/simulate-pre.reconstructed.sh`; it uses
+placeholder data and is not backdated or treated as evidence.
