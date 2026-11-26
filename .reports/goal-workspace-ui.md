@@ -108,3 +108,20 @@ Failure class: free-tier exhaustion
 Pivot: paid fallback, limited concurrency; if the paid budget tightens, finish one critical job
 at a time and use the orchestrator directly for integration.
 Next: review J1/J2 commits, integrate one at a time, then launch CLI/explorer/views/invoke.
+
+### 6 — 2026-11-26T23:48
+
+Action: J3 fixture reviewed PASS and cherry-picked as `681c691`; additive contract addendum
+committed as `9a5dd51`. J1 independent review FAILED on one real blocker: a timed-out Node child
+is left running while its temp dir is removed. J2 independent review PASSED as a source audit,
+with one finding: the client `ScopeDescriptor` omits the server's nullable `generatedAt`.
+Verification: `WORKSPACE_FIXTURE_OK` plus temp-copy mutation proofs (`/absolute` path and leaked
+`betaEntry` both fail correctly); J1 `cargo fmt` + 25 scoped server tests green but not accepted
+until the timeout cleanup is fixed; J2 `check-ui.mjs --source` passed, but the reviewer's WSL
+`npm test` hit a win32 esbuild binary mismatch (environment, not code). No full UI build yet.
+Verdict: in progress
+Failure class: Node process cleanup; client descriptor type gap
+Pivot: send J1 back for process-tree termination + test; send J2 a small `generatedAt` follow-up.
+Font bundling remains an explicit Phase 7 task, not silently dropped.
+Next: re-review J1; integrate J1/J2; run the full workspace/UI gate; launch CLI/explorer/views/
+invoke.
