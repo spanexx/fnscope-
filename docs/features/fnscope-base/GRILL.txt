@@ -1,0 +1,156 @@
+fnscope - GRILL.txt (requirements lock)
+======================================
+
+This is a plain-text requirements lock for the `fnscope-base` feature.
+It records what the user asked, in the user's own words where those words are
+available, and the answer that was locked for the build. It exists so a later
+agent can see why the project looks the way it does without guessing.
+
+AUTHORITY RULE (read before any entry)
+--------------------------------------
+The user granted delegated authority: "ask me no questions make all decisions
+yourself" (verbatim in `.reports/goal-build-fnscope.md`, line 12). No answer
+below was confirmed with the user. Every LOCKED ANSWER is therefore marked
+[agent decision]: it is the agent's call, made under that authority. The
+REQUEST lines are quotes, never answers. Where the full original prompt is not
+present verbatim in the repo, the file that carries it is named and the
+constraints visible in the repo are quoted exactly - nothing is reconstructed
+from memory.
+
+
+REQUEST 1 (verbatim, as carried in the J10 job brief)
+-----------------------------------------------------
+  "Agent Execution Prompt: Build fnscope ... i would prefer you use RUST language to develop this. ask me no questions make all decisions yourself"
+
+The ellipsis is part of the text available to me. The omitted middle of that
+prompt is not stored verbatim anywhere in this repo. The objective and
+constraints it fixed are recorded in `.reports/goal-build-fnscope.md` and are
+quoted verbatim here instead of being guessed:
+
+  - Outcome: `fnscope` is a working local-first Rust tool that scans TS/JS source into a schema-valid function graph manifest, supports hash-cached optional LLM enrichment, serves a React explorer UI plus JSON/invoke APIs on localhost, and is covered by extensive automated tests.
+  - Acceptance evidence:
+    1. `cargo test --workspace` -> all tests pass.
+    2. `cargo run -p fnscope -- scan <fixture> --out <dir>` -> `.fnscope/fn-graph.json` exists, validates against the schema contract, and contains deterministic steps, purity, permissions, throws, and bidirectional `calledBy` edges.
+    3. Enrichment: first run with a mock backend writes `enrich-cache.json`; second run on unchanged source performs zero backend calls; a formatting-only change reuses the cache.
+    4. `fnscope open <fixture>` -> `GET /` serves the explorer UI, `GET /api/fn-graph.json` serves the manifest, `POST /api/invoke` returns a result + trace; verified from Windows with `curl.exe`.
+    5. UI bundle is built from the supplied `fnscope_ui.tsx` and embedded in the binary (no runtime Node requirement).
+  - Scope: create the Rust workspace, UI build assets, fixtures, docs and tests under this repo. Do not modify the reference codebases.
+  - Authority: delegated (user: "ask me no questions make all decisions yourself").
+  - Budget: bounded by context; iterate until all evidence passes or a genuine blocker is recorded.
+  - Stop conditions: verified success, missing toolchain/access, ethics conflict, or a failure that survives a real strategy change.
+
+LOCKED ANSWER [agent decision]
+  Build fnscope in Rust. Ask no clarifying questions. The agent owns every
+  decision and writes it into `.reports/goal-build-fnscope.md` so a later
+  agent can see the reason.
+
+WHY
+  The user asked for Rust and explicitly removed the question loop. The five
+  acceptance items above are the definition of done; they are the only test
+  of success this build needs.
+
+SOURCE
+  Request: J10 job brief (the task that produced this file).
+  Objective and constraints: `.reports/goal-build-fnscope.md`, lines 4-14,
+  quoted verbatim above.
+
+
+REQUEST 2 (verbatim, as carried in the J10 job brief)
+-----------------------------------------------------
+  "break this project down into very many pieces and make sure you are the orchestrator rent sub agents to do all task and you review and criticize. make sure to guide them into creating the best fnscope"
+
+LOCKED ANSWER [agent decision]
+  Eleven jobs, J01 through J11, in four waves. The orchestrator delegates
+  each job to a subagent on a disjoint file set, reviews and criticises the
+  result, and runs every gate. The mapping is in IMPL.md and in
+  `.reports/goal-build-fnscope.md`, lines 27-48.
+
+WHY
+  "Very many pieces" is read as small, reviewable jobs with a single owner
+  each. "You are the orchestrator" means the agent does not merge its own
+  work unchecked. The review/criticise loop is how "the best fnscope" is
+  enforced rather than merely promised.
+
+SOURCE
+  Request: J10 job brief. Decomposition: `.reports/goal-build-fnscope.md`,
+  lines 27-48 ("Orchestration decomposition (11 jobs)").
+
+
+REQUEST 3 (verbatim, as carried in the J10 job brief)
+-----------------------------------------------------
+  "do not use cline one   use the sub agents you have in this opencode"
+
+The three spaces between "one" and "use" are in the source text and are
+kept here.
+
+LOCKED ANSWER [agent decision]
+  No Cline CLI. Delegation uses the OpenCode subagent tool only. The
+  orchestrator stays in this session; subagents write files and report back.
+
+WHY
+  The user named the tool to use and the tool to avoid. It also matches the
+  repo rule that each agent writes only its own files and reports what it
+  wrote (AGENTS.md, "Parallel work rule").
+
+SOURCE
+  Request: J10 job brief. Delegation rule: AGENTS.md, "Parallel work rule",
+  lines 29-33.
+
+
+DECISIONS D1-D5 (all [agent decision] under delegated authority)
+---------------------------------------------------------------
+Each was decided by the agent because the user removed the question loop.
+The source line in `.reports/goal-build-fnscope.md` is given for each.
+
+D1 [agent decision] - Rust instead of Node/TypeScript.
+  ANSWER: Rust, with tree-sitter + tree-sitter-typescript and
+  tree-sitter-javascript in place of the spec's ts-morph.
+  WHY: the user prefers Rust; tree-sitter gives the same deterministic AST
+  truth in Rust.
+  SOURCE: `.reports/goal-build-fnscope.md`, line 21 ("Source: user
+  instruction"). The preference is the user's; the recorded answer is an
+  agent decision because no clarification was requested.
+
+D2 [agent decision] - Build lane is WSL Debian.
+  ANSWER: run builds and tests in WSL Debian, where Rust 1.99.1 and gcc
+  14.2.0 are installed. The Windows tree is the same files at the WSL mount
+  path.
+  WHY: Windows has rustup but no PATH entry and no C compiler; WSL has the
+  working toolchain.
+  SOURCE: `.reports/goal-build-fnscope.md`, line 22 ("Source: environment
+  audit").
+
+D3 [agent decision] - UI stays React.
+  ANSWER: keep the supplied React/TSX component as the UI contract. Node is
+  used at build time only to compile static assets; the Rust binary embeds
+  those assets, so runtime needs no Node.
+  WHY: the supplied UI is part of the contract and the user wants Rust at
+  runtime.
+  SOURCE: `.reports/goal-build-fnscope.md`, line 23 ("Source: spec section 6
+  + user Rust preference").
+
+D4 [agent decision] - Invoke semantics.
+  ANSWER: execute real functions through a Node runner when available;
+  otherwise return a deterministic simulated trace. Documented as such.
+  WHY: the spec calls invoke optional, so a fallback is safe and testable.
+  SOURCE: `.reports/goal-build-fnscope.md`, line 24 ("Source: spec section
+  2B calls invoke 'optional'").
+
+D5 [agent decision] - Watcher.
+  ANSWER: poll a directory fingerprint (paths + mtimes + sizes) and rescan on
+  change, instead of using a native watcher crate.
+  WHY: cross-platform determinism and fewer dependencies.
+  SOURCE: `.reports/goal-build-fnscope.md`, line 25.
+
+
+AMBIGUITY NOTE
+--------------
+The opening of REQUEST 1 is truncated in every source available to this repo:
+the J10 brief carries an ellipsis and no verbatim full prompt is stored. I did
+not reconstruct the missing words. The objective and constraints are quoted
+from the goal report instead, which is the locked requirement source named in
+that same report:
+
+  "Pipeline: direct (delegated authority; spec is the locked requirement source)."
+
+  - from `.reports/goal-build-fnscope.md`, line 16.

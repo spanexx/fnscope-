@@ -1,0 +1,193 @@
+# Goal: Build fnscope end-to-end in Rust and verify it extensively
+
+Contract:
+- Outcome: `fnscope` is a working local-first Rust tool that scans TS/JS source into a schema-valid function graph manifest, supports hash-cached optional LLM enrichment, serves a React explorer UI plus JSON/invoke APIs on localhost, and is covered by extensive automated tests.
+- Acceptance evidence:
+  1. `cargo test --workspace` -> all tests pass.
+  2. `cargo run -p fnscope -- scan <fixture> --out <dir>` -> `.fnscope/fn-graph.json` exists, validates against the schema contract, and contains deterministic steps, purity, permissions, throws, and bidirectional `calledBy` edges.
+  3. Enrichment: first run with a mock backend writes `enrich-cache.json`; second run on unchanged source performs zero backend calls; a formatting-only change reuses the cache.
+  4. `fnscope open <fixture>` -> `GET /` serves the explorer UI, `GET /api/fn-graph.json` serves the manifest, `POST /api/invoke` returns a result + trace; verified from Windows with `curl.exe`.
+  5. UI bundle is built from the supplied `fnscope_ui.tsx` and embedded in the binary (no runtime Node requirement).
+- Scope: create the Rust workspace, UI build assets, fixtures, docs and tests under this repo. Do not modify the reference codebases.
+- Authority: delegated (user: "ask me no questions make all decisions yourself").
+- Budget: bounded by context; iterate until all evidence passes or a genuine blocker is recorded.
+- Stop conditions: verified success, missing toolchain/access, ethics conflict, or a failure that survives a real strategy change.
+
+Pipeline: direct (delegated authority; spec is the locked requirement source).
+Worktree: none — repo starts empty, main is the workbench by explicit user instruction to build here.
+
+## Decisions (delegated authority)
+
+- **D1 — Rust instead of Node/TypeScript**: user explicitly prefers Rust. The spec's `ts-morph` requirement is adapted to `tree-sitter` + `tree-sitter-typescript`/`tree-sitter-javascript`, which provides the same deterministic AST truth in Rust. Source: user instruction.
+- **D2 — Build lane is WSL Debian**: Windows has rustup but no PATH entry and no C compiler; WSL has Rust 1.99.1 and gcc 14.2.0. Files live at the Windows workspace path, which is `/mnt/c/...` in WSL. Source: environment audit.
+- **D3 — UI stays React**: the supplied UI is a React/TSX component and is part of the contract. Node is used at *build time only* to compile it into static assets; the Rust binary embeds those assets, so runtime is Rust-only. Source: spec section 6 + user Rust preference.
+- **D4 — Invoke semantics**: real functions are executed through a Node runner when available; otherwise the API returns a deterministic simulated trace. Documented as such. Source: spec section 2B calls invoke "optional".
+- **D5 — Watcher**: polling directory fingerprint (paths + mtimes + sizes) instead of a native watcher crate, for cross-platform determinism and fewer dependencies.
+
+## Orchestration decomposition (11 jobs)
+
+Wave 1 — parallel, disjoint files:
+- J01 `crates/fnscope-model/` — JSON schema + validate + unit tests.
+- J02 `crates/fnscope-parser/src/discover.rs` — tree-sitter function discovery + signatures.
+- J03 `crates/fnscope-parser/src/body.rs` — steps, throws, purity, permissions, callees.
+- J08 `ui/` — copy supplied TSX, bundle React UI into embedded static assets.
+- J09 `tests/fixtures/sample_app/` — realistic TS/JS fixture project.
+- J10 `docs/drift.md`, `docs/features/fnscope-base/`, `docs/ethics/` — factory docs.
+- J11 `scripts/` — bounded test/smoke harness (dispatched in wave 2 to avoid depending on unfinished CLI).
+
+Wave 2 — after model + parser integrate:
+- J04 `crates/fnscope-core/` — file discovery, id/hash, call graph, manifest I/O.
+- J05 `crates/fnscope-enrich/` — hash cache, backend trait, mock + HTTP LLM, noop fallback.
+
+Wave 3 — after core + enrich integrate:
+- J06 `crates/fnscope-server/` — axum router, embedded UI, `/api/*`, node/simulate invoke.
+- J07 `crates/fnscope-cli/` — clap `scan`/`open`, polling watcher, progress output.
+- J11 `scripts/` — test/smoke harness.
+
+Wave 4 — orchestrator only:
+- Full gates, review/criticise loop, end-to-end curl + browser verification, drift reconciliation.
+
+## Iterations
+
+### 1 — 2026-11-25
+Action: Audited workspace, spec, UI contract, reference codebases and toolchains. Confirmed network access to crates.io, Rust 1.99.1 + gcc in WSL, Node 24 on Windows.
+Verification: `cargo search serde --limit 1` -> `serde = "1.0.229"`, `INNER_STATUS=0`.
+Verdict: pass
+Failure class: none
+Pivot: none
+Next: create workspace skeleton, delegation contract, and dispatch jobs.
+
+### 2 — 2026-11-25
+Action: Wrote the locked integration contract (`docs/contract/rust-api.md`), workspace manifest, parser shared types + compilable stubs, UI asset placeholders, AGENTS.md, and goal ledger. Dispatched 11 subagent jobs (J01..J11) with disjoint file sets, no cargo access, and self-contained briefs.
+Verification: file reads confirm contract + stubs + seven initial jobs running.
+Verdict: pass
+Failure class: none
+Pivot: switched from single-agent implementation to orchestrator + subagents per user instruction.
+Next: review completed jobs, integrate, run gates.
+
+### 3 — 2026-11-25
+Action: Integrated all 11 jobs; pre-fetched 188 crates; ran the first compile (`cargo check` on the five stable crates).
+Verification: `cargo check -p fnscope-model -p fnscope-parser -p fnscope-core -p fnscope-enrich -p fnscope-server` -> `CARGO_CHECK_STATUS=101`; 7 errors, all in `fnscope-parser` (1 E0308 kind-vs-node in discover.rs, cascading E0599/E0382-style inference error, 4 E0597 iterator-temporary lifetimes, 1 E0382 partial move in body.rs).
+Verdict: fail
+Failure class: Rust borrow/type errors from delegated code written without compiler feedback (by design, to avoid parallel cargo contention).
+Pivot: sent exact compiler diagnostics back to J02 and J03 for targeted fixes; orchestrator retains all gate execution.
+Next: re-run `cargo check --workspace`, then `cargo test --workspace`.
+
+### 4 — 2026-11-25
+Action: Re-ran full workspace tests after parser fixes; isolated a wrong test assertion in core, corrected by J04; restored a `#[cfg(test)]`-gated `Body` import in the server after my own warning cleanup broke the test target.
+Verification: `cargo test --workspace` -> CLI 6/6, core unit 10/10, core integration 5/5, enrich 9/9 pass; model 9/10 — `validate_aggregates_every_problem` expected `steps[0].id` but only faulted indices are reported.
+Verdict: fail (one assertion)
+Failure class: test expectation disagrees with correct production behavior.
+Pivot: sent exact assertion + real output back to J01; no production change requested.
+Next: re-run full suite with `FNSCOPE_NODE` (Windows Node 24) so the server's real-invoke test runs, then run `scripts/test-all.sh`.
+
+### 5 — 2026-11-25
+Action: Re-ran full suite with Windows Node 24 via `FNSCOPE_NODE`. All crates passed except one parser test.
+Verification: CLI 6/6, core unit 10/10, core integration 5/5, enrich 9/9, model 10/10, parser 16/17. `discover::tests::deterministic_order_and_duplicate_suppression` expected `["a","b"]` but got `["b","a","b"]`.
+Verdict: fail (one assertion)
+Failure class: test expectation contradicts the locked dedup key `(qualified_name, line)`.
+Pivot: sent exact output to J02; asked to correct the assertion and add a real duplicate-suppression test for `export function`.
+Next: re-run full suite; server tests have not executed yet because the suite stops at the parser failure.
+
+### 6 — 2026-11-25
+Action: Full suite re-run with Windows Node 24 via `FNSCOPE_NODE`. CLI 6, core 10+5, enrich 9, model 10, parser 18 all pass. Server 7/8 pass; real-invoke test returns `data: null`.
+Verification: `node_invocation_runs_a_real_export` -> `left: None, right: Some(42)`.
+Verdict: fail (real Node invocation)
+Failure class: cross-environment path translation. WSL translates Linux paths in argv for Windows executables, but the generated runner embedded `file:///tmp/...` inside a file, which Windows Node cannot resolve.
+Pivot: J06 to pass the module path as argv[3] instead of embedding it; args path already used argv[2].
+Next: re-run full suite; then `scripts/test-all.sh` (fmt, tests, release build, fixture scan, server smoke).
+
+### 7 — 2026-11-25
+Action: Added a diagnostic assertion that prints the invoke response, then ran only `node_invocation_runs_a_real_export` with `FNSCOPE_NODE` set.
+Verification: real error captured — `node '/mnt/c/Program Files/nodejs/node.exe' exited with exit status: 1 ... Cannot find module 'C:\tmp\fnscope-invoke-...\runner.mjs'`.
+Verdict: fail (real Node invocation)
+Failure class: WSL path translation maps `/tmp/...` to `C:\tmp\...`, where Rust's WSL-created scratch files do not exist. Passing the module in argv was necessary but not sufficient.
+Pivot: J06 to create the scratch dir beside the manifest (a `/mnt/c/...` path under WSL) and to place the test module under the repo's `target/` dir.
+Next: re-run the single test, then the full suite.
+
+### 8 — 2026-11-25
+Action: Installed native Node 24 in WSL (env setup, not committed), re-ran the full suite, formatted the workspace, and ran the full repo harness.
+Verification: `cargo test --workspace` with `FNSCOPE_NODE=<native node24>` -> `CARGO_TEST_STATUS=0`; 66 tests pass including real Node invocation. `cargo fmt --all && cargo fmt --all -- --check` -> `FMT_STATUS=0`. `bash scripts/test-all.sh` -> `ALL_TESTS_OK` with `MANIFEST_OK: 9 functions, 8 call edges` and `SERVER_SMOKE_OK`.
+Verdict: pass
+Failure class: none
+Pivot: none
+Next: address review findings on real manifest quality; dispatch enrichment E2E and browser audit; close drift entries.
+
+### 9 — 2026-11-25
+Action: Ran the new enrichment end-to-end harness (J12) with a mock OpenAI-compatible HTTP server.
+Verification: `bash scripts/enrich-e2e.sh` -> `ENRICH_E2E_OK`; 9 functions, 9 mock calls on first scan; unchanged second scan and formatting-only edit both made 0 additional calls with a byte-identical cache; a semantic string change caused a new call.
+Verdict: pass
+Failure class: none
+Pivot: none
+Next: browser UI audit (J13); cross-file return-field fix (J04); final docs closure.
+
+### 10 — 2026-11-25
+Action: Real browser audit of the served UI (J13), plus J04 cross-file type-index integration and J14 root README.
+Verification: `.reports/ui-browser.md` -> 7 PASS, 1 FAIL, 1 PARTIAL. Real manifest and real Node execution confirmed (`clamp -> 10`, no post-Run `simulated: true`). Three bugs found: (1) `.json` raw view omits graph metadata; (2) `Jump ↑` truncates breadcrumb and removes `Back`; (3) sandbox args mismatch for object/scalar parameters. `cargo test --workspace` still 0 with 71+ tests; `ALL_TESTS_OK`; `ENRICH_E2E_OK`.
+Verdict: fail (3 UI/API bugs found by audit)
+Failure class: interface contract mismatch between manifest parameters, UI form and Node runner argv.
+Pivot: J08 to fix UI metadata/breadcrumb/arg repair; J06 to dispatch Node args by manifest parameter names.
+Next: re-run fmt, full suite, harness, enrichment E2E, and a targeted browser re-audit.
+
+### 11 — 2026-11-25
+Action: Integrated J06 runner arg mapping and J08 UI fixes; formatted and re-ran the full suite and repo harness.
+Verification: `cargo test --workspace` -> 0, 72 tests incl. new scalar-param runner test. `scripts/test-all.sh` -> 101; new test failed with `Directory import ... fnscope-node-scalar-.../ is not supported`.
+Verdict: fail (one test setup bug)
+Failure class: test's FnRecord omitted `file_path`, so the runner targeted a directory.
+Pivot: J06 to set `file_path: "shout.mjs"` in the new test.
+Next: re-run harness, enrichment E2E, targeted browser re-audit, then close docs.
+
+### 12 — 2026-11-25
+Action: Re-formatted and re-ran full verification after the J06/J08 fixes.
+Verification: `cargo fmt --all -- --check` -> `FMT_STATUS=0`; `scripts/test-all.sh` -> `ALL_TESTS_OK` (`MANIFEST_OK: 9 functions, 8 call edges`, `SERVER_SMOKE_OK`); `scripts/enrich-e2e.sh` -> `ENRICH_E2E_OK`. All 72 Rust tests pass, including real Node invocation and scalar-by-name dispatch.
+Verdict: pass
+Failure class: none
+Pivot: none
+Next: targeted browser re-audit (J13), docs closure (J10), final cleanup and git status.
+
+### 13 — 2026-11-25
+Action: Targeted browser re-audit of the three fixed bugs; docs closure; cleanup audit.
+Verification: `.reports/ui-browser.md` `## Re-audit` -> 6 PASS, 0 FAIL. Exact evidence: `.json` has `schemaVersion: 1.0.0` etc.; `Jump ↑` gives trail grade → evaluate → grade and Back returns to evaluate; default invoke POST sends repaired `input` object and returns `ok:true` with `roleId: doer`; `tokenize` -> 8-token array; `slugify` -> `hello-world`; `clamp` -> `10`; no `simulated: true` after Run. Docs: PRD-TRD + IMPL `SHIPPED`, drift D-1 + D-2 `Resolved` (J10 caught and fixed a stale row status).
+Verdict: pass
+Failure class: none
+Pivot: one polish item — J06 to merge the deterministic trace into Node-mode responses so step badges refresh.
+Next: final fmt/test/harness run, cleanup of leftover scratch dirs, final ledger entry.
+
+### 14 — 2026-11-25 (close)
+Action: Final polish (merge deterministic trace into Node-mode responses), then all gates and cleanup.
+Verification:
+- `cargo fmt --all -- --check` -> 0.
+- `cargo test --workspace` -> 0; 72 tests (CLI 6, core 10+6, enrich 9, model 10, parser 22, server 9), including real Node invocation and scalar-by-name dispatch.
+- `bash scripts/test-all.sh` -> `ALL_TESTS_OK` with `MANIFEST_OK: 9 functions, 8 call edges` and `SERVER_SMOKE_OK`.
+- `bash scripts/enrich-e2e.sh` -> `ENRICH_E2E_OK` (9 first-run calls; 0 on unchanged/formatting-only rescans; new call after semantic edit).
+- Browser re-audit `.reports/ui-browser.md` -> 6 PASS / 0 FAIL on all three previously reported bugs.
+- Cleanup audit: no fnscope processes, no ports 4310-4314, no scratch dirs, no CRLF in text files; temp helper scripts removed. Git status shows only intended new files (uncommitted).
+Verdict: pass — all acceptance evidence present.
+Failure class: none.
+Pivot: none.
+Next: none. Goal closed. Remaining human gate: no commit was made (goal skill treats the commit go as a human gate).
+
+### 15 — 2026-11-26 (new request)
+Action: User asked to scan `crates/` (Rust source) after seeing the TS/JS 1-Hop Map. Confirmed by running `fnscope scan crates --out /tmp/fnscope-rust-scan`: `scanned 0 functions in 0 files` — the scanner only handled TS/JS. Decision (delegated authority from the original brief): add a Rust language backend so the user's request works. Added `tree-sitter-rust` to the workspace and parser manifests, added `Lang::Rust` to shared types.
+Verification: `cargo info tree-sitter-rust` -> 0.24.2 available.
+Verdict: pass (diagnosis), work in progress.
+Failure class: capability gap, not a bug.
+Pivot: dispatched J15 (Rust parser), J16 (core `.rs` discovery), J17 (Rust fixture), J18 (docs).
+Next: integrate, compile, fix, verify with real scans of the fixture and `crates/`.
+
+### 16 — 2026-11-26 (scope expansion)
+Action: User expanded the goal to polyglot language support with a pluggable Tree-sitter/language-backend architecture. New role rules: main agent is orchestrator/reviewer/critic ONLY; all investigation, implementation, refactoring and test-writing delegated to isolated subagents; agents may work in separate worktrees and the orchestrator reviews and merges to main.
+Contract update:
+- Outcome: fnscope scans Rust, TS/JS, Python, Go and the standard language set with accurate function graphs and execution steps; adding a language requires ZERO changes to core graph builder, schema, enricher or UI; all existing TS/JS behavior and tests preserved.
+- Acceptance evidence: (1) `cargo test --workspace` green for every backend; (2) a real scan of `crates/` yields non-zero functions, accurate steps and valid `calledBy` links; (3) a mixed polyglot fixture scans correctly in one manifest; (4) every backend has unit + integration tests; (5) existing TS/JS gates remain green.
+- Authority: delegated; user explicitly authorized worktree isolation and merging to main.
+- Stop conditions: verified success, ethics conflict, or a failure surviving a real strategy change.
+Verdict: in progress
+Failure class: none
+Pivot: after J15-J18 integrate, snapshot a baseline commit, move new work into per-job worktrees, then refactor to a language-adapter interface before adding languages.
+Next: integrate Rust jobs; gate; delegate adapter architecture.
+
+### Review notes (orchestrator)
+- J01 (model) reviewed: exact camelCase serde names, aggregated `validate`, 10 tests. One accepted deviation: uppercase hex accepted in `astHash` (still 64 hex chars). No conflict.
+- J09 (fixture) reviewed: 8 core functions, explicit `.ts` imports, `dryRun` path for safe invoke.
+- **Found gap**: WSL `node` is v20.20.2 but fixture requires Node 24 type stripping; Windows Node is v24.20.0. Sent follow-up to J06 requiring `FNSCOPE_NODE` override and a version-aware skip in the Node-mode test. Real invoke will be verified with `FNSCOPE_NODE` pointing at Windows Node 24 from WSL. This is a doc-vs-environment drift to record in `docs/drift.md` once J10 finishes.

@@ -1,0 +1,8 @@
+/target/
+**/target/
+.fnscope/
+ui/node_modules/
+ui/.vite/
+node_modules/
+.reports/tmp/
+*.log
