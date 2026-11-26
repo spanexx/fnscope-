@@ -796,7 +796,7 @@ mod tests {
         assert_eq!(relative_display_root("nested\\project"), "nested/project");
         assert_eq!(relative_display_root(""), ".");
         assert_eq!(relative_display_root("/etc/passwd"), ".");
-        assert_eq!(relative_display_root("C:\\Users\\me"), ".");
+        assert_eq!(relative_display_root("C:\\Users\\me"), "."); // culture-allow: absolute path: test input
         assert_eq!(relative_display_root("../outside"), ".");
     }
 

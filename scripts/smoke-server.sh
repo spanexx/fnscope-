@@ -98,6 +98,30 @@ curl -fsS --max-time 5 "$BASE/app.js" -o "$TMP_DIR/app.js"
 curl -fsS --max-time 5 "$BASE/app.css" -o "$TMP_DIR/app.css"
 [[ -s "$TMP_DIR/app.css" ]]
 
+# The additive scope API must exist even in single-scope mode. This catches a
+# server that predates the workspace scope registry and would otherwise pass
+# the legacy routes while the UI has nothing to switch between.
+curl -fsS --max-time 5 "$BASE/api/scopes" -o "$TMP_DIR/scopes.json"
+DEFAULT_SCOPE_ID="$(node --input-type=commonjs -e '
+const fs = require("node:fs");
+const list = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+const problems = [];
+if (!Array.isArray(list.scopes) || list.scopes.length === 0) problems.push("scope list is empty");
+if (typeof list.defaultScope !== "string" || list.defaultScope.length === 0) {
+  problems.push("defaultScope is missing");
+}
+const descriptor = Array.isArray(list.scopes)
+  ? list.scopes.find((scope) => scope && scope.id === list.defaultScope)
+  : null;
+if (!descriptor) problems.push("defaultScope is not in the scope list");
+if (descriptor && descriptor.available !== true) problems.push("default scope is unavailable");
+if (problems.length > 0) {
+  for (const problem of problems) console.error("SMOKE_FAIL: " + problem);
+  process.exit(1);
+}
+process.stdout.write(String(list.defaultScope));
+' "$TMP_DIR/scopes.json")"
+
 curl -fsS --max-time 5 "$BASE/api/fn-graph.json" -o "$TMP_DIR/fn-graph.json"
 node --input-type=commonjs -e '
 const fs = require("node:fs");
@@ -111,6 +135,21 @@ if (!Array.isArray(graph.functions) || graph.functions.length === 0) {
   process.exit(1);
 }
 ' "$TMP_DIR/fn-graph.json"
+
+curl -fsS --max-time 5 "$BASE/api/scopes/$DEFAULT_SCOPE_ID/fn-graph.json" \
+  -o "$TMP_DIR/scoped-graph.json"
+node --input-type=commonjs -e '
+const fs = require("node:fs");
+const graph = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+if (graph.tool !== "fnscope") {
+  console.error("SMOKE_FAIL: scoped manifest tool must be fnscope");
+  process.exit(1);
+}
+if (!Array.isArray(graph.functions) || graph.functions.length === 0) {
+  console.error("SMOKE_FAIL: scoped manifest has no functions");
+  process.exit(1);
+}
+' "$TMP_DIR/scoped-graph.json"
 
 FIRST_ID="$(node --input-type=commonjs -e '
 const fs = require("node:fs");
@@ -135,6 +174,23 @@ if (problems.length > 0) {
   process.exit(1);
 }
 ' "$TMP_DIR/invoke.json"
+
+curl -fsS --max-time 5 -H "Content-Type: application/json" \
+  -d "{\"fnId\":\"${FIRST_ID}\",\"args\":{}}" \
+  "$BASE/api/scopes/$DEFAULT_SCOPE_ID/invoke" -o "$TMP_DIR/scoped-invoke.json"
+
+node --input-type=commonjs -e '
+const fs = require("node:fs");
+const response = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+if (response.ok !== true) {
+  console.error("SMOKE_FAIL: scoped invoke response ok must be true");
+  process.exit(1);
+}
+if (!response.trace || typeof response.trace !== "object" || Array.isArray(response.trace)) {
+  console.error("SMOKE_FAIL: scoped invoke response must contain a trace object");
+  process.exit(1);
+}
+' "$TMP_DIR/scoped-invoke.json"
 
 # Cleanup runs before the verdict so a successful marker always means no server is left behind.
 stop_server
