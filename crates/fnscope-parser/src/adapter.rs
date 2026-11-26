@@ -12,10 +12,15 @@ use fnscope_model::ReturnShape;
 
 use crate::c_lang::CAdapter;
 use crate::cpp::CppAdapter;
+use crate::csharp::CSharpAdapter;
 use crate::golang::GoAdapter;
 use crate::java::JavaAdapter;
+use crate::kotlin::KotlinAdapter;
+use crate::php::PhpAdapter;
 use crate::python::PythonAdapter;
+use crate::ruby::RubyAdapter;
 use crate::rust::RustAdapter;
+use crate::swift::SwiftAdapter;
 use crate::types::{BodyAnalysis, DiscoveredFn, Lang};
 use crate::typescript::TypeScriptAdapter;
 
@@ -67,7 +72,7 @@ impl Registry {
     }
 
     /// Create the built-in registry: TypeScript, TSX, JavaScript, JSX, Rust,
-    /// Python, Go, Java, C and C++.
+    /// Python, Go, Java, C, C++, C#, Kotlin, PHP, Ruby and Swift.
     pub fn with_builtin_adapters() -> Self {
         let mut registry = Self::new();
         registry.register(Box::new(TypeScriptAdapter::new(Lang::TypeScript)));
@@ -80,6 +85,12 @@ impl Registry {
         registry.register(Box::new(JavaAdapter::new()));
         registry.register(Box::new(CAdapter::new()));
         registry.register(Box::new(CppAdapter::new()));
+        // New languages register last so the original first-claim order cannot change.
+        registry.register(Box::new(CSharpAdapter::new()));
+        registry.register(Box::new(KotlinAdapter::new()));
+        registry.register(Box::new(PhpAdapter::new()));
+        registry.register(Box::new(RubyAdapter::new()));
+        registry.register(Box::new(SwiftAdapter::new()));
         registry
     }
 
@@ -126,6 +137,11 @@ mod tests {
             ("c", "c"),
             ("cpp", "cpp"),
             ("cc", "cpp"),
+            ("cs", "csharp"),
+            ("kt", "kotlin"),
+            ("php", "php"),
+            ("rb", "ruby"),
+            ("swift", "swift"),
         ] {
             let adapter = registry
                 .for_extension(extension)

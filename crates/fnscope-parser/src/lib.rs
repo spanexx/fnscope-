@@ -5,11 +5,16 @@ pub mod adapter;
 pub mod body;
 pub mod c_lang;
 pub mod cpp;
+pub mod csharp;
 pub mod discover;
 pub mod golang;
 pub mod java;
+pub mod kotlin;
+pub mod php;
 pub mod python;
+pub mod ruby;
 pub mod rust;
+pub mod swift;
 pub mod types;
 pub mod typescript;
 

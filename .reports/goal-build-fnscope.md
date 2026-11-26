@@ -330,6 +330,60 @@ Failure class: comment delimiter leak; contract-parity expectation mismatch.
 Pivot: sent exact outputs to J31 and J30 with an explicit code-vs-test decision request for Java.
 Next: re-merge, gate, polyglot scan across 8 languages, commit; then final five adapters.
 
+### 35 — 2026-11-26
+Action: Java/C/C++ gate green (130 tests), mixed 8-language scan passed (46 functions across ts/js/rs/py/go/java/c/cpp, 105 steps, 19 resolved calls, 0 dangling), batch committed as `5408cad`. All five final adapters (Kotlin, C#, Ruby, PHP, Swift) reported complete; orchestrator dispatched J40 for one strict review, including an explicit soundness judgement on Kotlin's tree-sitter 0.21-vs-0.25 raw-pointer bridge.
+Verdict: Java/C/C++ pass; final five pending review
+Failure class: none recorded yet
+Pivot: no merge before the Kotlin bridge is judged sound.
+Next: route findings, one registration job for all five, gate, 13-language polyglot scan, commit, final docs/verification.
+
+### 36 — 2026-11-26
+Action: J40 reviewed the final five adapters -> FAIL with 3 findings (Swift test count, C# README row, stale doc line numbers in four adapter docs). Kotlin's raw-pointer bridge was explicitly judged SOUND (repr(transparent) thin pointers, ABI 14 supported, no double-drop). Routed F1 to J39, F2 to J36, and dispatched J41 registration worktree.
+Verdict: fail (3 low/medium findings), fixes in progress
+Failure class: reporting mismatch + malformed doc table + stale line references.
+Pivot: no merge before F1/F2 are fixed; F3 will be corrected after merge by a docs-owned job.
+Next: merge all five worktrees + registration, gate, 13-language polyglot scan, culture check, commit, final docs and answer.
+
+### 37 — 2026-11-26
+Action: Merged the final five adapters + J41 registration, then ran the gate; dependency resolution failed before compilation. Diagnosed a native `links = "tree-sitter"` conflict from tree-sitter-kotlin 0.3.8 (pins 0.21/0.22) coexisting with workspace tree-sitter 0.25. Found `tree-sitter-kotlin-ng 1.1.0` (uses tree-sitter-language 0.1, exports `LANGUAGE`) as the compatible replacement.
+Verification: `cargo test --workspace` -> resolver error naming tree-sitter v0.21.0 and the `links` uniqueness rule; replacement crate source verified at cached path with `pub const LANGUAGE: LanguageFn`.
+Verdict: fail (dependency conflict)
+Failure class: native library links conflict, not a code defect.
+Pivot: D-6 recorded before the fix; J42 porting Kotlin adapter to the -ng grammar; J43 renaming the two Cargo.toml dependency lines.
+Next: re-merge, gate, 13-language polyglot scan, culture, commit, final docs.
+
+### 38 — 2026-11-26
+Action: Re-merged the Kotlin -ng port and dependency rename, then ran the final gate. Dependency conflict resolved (5 new grammars locked), but compilation revealed 49 errors across the five new adapters.
+Verification: `cargo test --workspace` -> `ADAPTER_GATE_STATUS=101`; categories: PHP/Ruby inaccessible `type_index`, C# associated-vs-instance trait call + lifetimes, Swift `node_text(&Node)` borrows + unused import, Kotlin String `.filter` + missing trait import in tests + lifetimes.
+Verdict: fail (compile)
+Failure class: L1/L11 recurring classes — helpers not in scope, Node-by-value API, iterator temporaries, wrong call form.
+Pivot: exact compiler locations and full-log grep instructions sent to J36-J39 and J42; no orchestrator code edits.
+Next: re-merge, re-gate, 13-language polyglot scan, culture, commit.
+
+### 39 — 2026-11-26
+Action: Re-merged all five corrected adapters and re-ran the gate; only 6 lifetime errors remained (PHP 4, Ruby 2).
+Verification: `cargo test --workspace` -> `ADAPTER_GATE_STATUS=101`; locations php/body.rs 198,226,498; php/discover.rs 96; ruby/body.rs 169,211. These are L1 sites the earlier helper-scope briefs did not sweep.
+Verdict: fail (borrow lifetimes)
+Failure class: iterator temporary outliving cursor.
+Pivot: exact lines back to J38/J37 with a full-module sweep instruction.
+Next: re-merge, gate, 13-language scan, culture, commit, docs closure.
+
+### 40 — 2026-11-26
+Action: Re-merged PHP/Ruby lifetime fixes; compile gate green with 175 parser tests, 7 logic failures.
+Verification: `ADAPTER_GATE_STATUS=101`; failures: C# 4 (call-initializer kind, required flag, default value, doc comment), Kotlin 1 (missing INVALID_INPUT after -ng port), PHP 1 (`$result: unknown` vs `int`), Swift 1 (`"true)"` vs `Bool(true)`). All judged CODE against locked spec §4.
+Verdict: fail (logic)
+Failure class: extraction/inference defects, not test expectations.
+Pivot: exact assertions sent to J36/J38/J39/J42 with contract citations.
+Next: re-merge, gate, 13-language scan, culture, commit.
+
+### 41 — 2026-11-26
+Action: Re-merged all four logic fixes; final gate down to ONE compile error in J36's newly added nullable-parameter helper.
+Verification: `cargo test --workspace` -> `ADAPTER_GATE_STATUS=101`; `csharp/discover.rs:554:27` E0597 `type_cursor` outlived by `.children(...).any(...)`.
+Verdict: fail (single L1 lifetime)
+Failure class: iterator temporary at tail expression in a newly added helper.
+Pivot: exact line sent back to J36.
+Next: re-merge, gate, 13-language scan, culture, commit, docs closure.
+
 ### Review notes (orchestrator)
 - J01 (model) reviewed: exact camelCase serde names, aggregated `validate`, 10 tests. One accepted deviation: uppercase hex accepted in `astHash` (still 64 hex chars). No conflict.
 - J09 (fixture) reviewed: 8 core functions, explicit `.ts` imports, `dryRun` path for safe invoke.

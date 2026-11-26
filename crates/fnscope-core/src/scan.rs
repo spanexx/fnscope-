@@ -38,6 +38,11 @@ impl Default for ScanOptions {
                 "**/*.c",
                 "**/*.cpp",
                 "**/*.cc",
+                "**/*.cs",
+                "**/*.kt",
+                "**/*.php",
+                "**/*.rb",
+                "**/*.swift",
             ]
             .into_iter()
             .map(str::to_owned)
@@ -538,6 +543,11 @@ mod tests {
                 "**/*.c",
                 "**/*.cpp",
                 "**/*.cc",
+                "**/*.cs",
+                "**/*.kt",
+                "**/*.php",
+                "**/*.rb",
+                "**/*.swift",
             ]
             .into_iter()
             .map(str::to_owned)
