@@ -140,3 +140,14 @@ Failure class: none
 Pivot: none
 Next: launch the CLI workspace job and the explorer/view/invoke UI jobs from the integrated
 baseline.
+
+### 8 — 2026-11-27T00:07
+
+Action: launched wave 2 from integrated baseline `ea10b09`: J4 CLI workspace config (paid
+fallback) and J5 explorer / J6 views / J7 invoke (Hy4 `#high` free) in disjoint worktrees.
+Verification: four worktrees clean; no code integrated yet; each job is limited to its own
+directory and may not edit `App.tsx` or `ui/dist`.
+Verdict: pass (wave running)
+Failure class: none; Hy4 free quota may still cap a job
+Pivot: fall back within the free tier, then paid, only for a failed job
+Next: review each job, wire the components into `App.tsx`, rebuild, and run the full gate.

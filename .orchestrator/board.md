@@ -50,6 +50,18 @@ Gate on the integrated tree: `ALL_TESTS_OK`, `CULTURE_OK`, `UI_CHECK_OK`, `UI_TE
 Next wave: CLI workspace config; explorer; Story/1-Hop/Split/Raw; invoke drawer; then
 accessibility/polish and acceptance.
 
+## Wave 2 — running
+
+| Job | Work | Worktree / branch | Model | Status |
+|---|---|---|---|---|
+| J4 | CLI workspace config + multi-scope scan/watch | `~/.config/superpowers/worktrees/fnscope/feature-workspace-cli` / `feature/workspace-cli` | paid fallback | running |
+| J5 | Entry-point/module/search explorer | `~/.config/superpowers/worktrees/fnscope/feature-ui-explorer` / `feature/ui-explorer` | Hy4 `#high` (free) | running |
+| J6 | Story / 1-Hop / Split / Raw views | `~/.config/superpowers/worktrees/fnscope/feature-ui-views` / `feature/ui-views` | Hy4 `#high` (free) | running |
+| J7 | Invoke drawer + real trace | `~/.config/superpowers/worktrees/fnscope/feature-ui-invoke` / `feature/ui-invoke` | Hy4 `#high` (free) | running |
+
+Baseline: `ea10b09`. Each job owns a disjoint directory; none may edit `App.tsx` or
+`ui/dist`. The orchestrator wires the modules after review.
+
 Free-tier implementation failed before any edit; the paid fallback is the documented last-resort
 lane. Keep paid concurrency limited and integrate one reviewed commit at a time.
 
