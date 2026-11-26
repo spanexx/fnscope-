@@ -131,6 +131,8 @@ export interface ScopeDescriptor {
   functionCount: number;
   fileCount: number;
   languages: ScopeLanguage[];
+  /** Server-supplied scan timestamp; null/absent must render as unknown. */
+  generatedAt?: string | null;
   available: boolean;
   invokeMode: InvokeMode | null;
   defaultFunctionId: string | null;

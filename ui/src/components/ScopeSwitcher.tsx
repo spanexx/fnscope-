@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Shield } from 'lucide-react';
+import { Check, ChevronDown, Clock, Shield } from 'lucide-react';
 import Badge from './Badge';
 import { formatCount } from '../lib/format';
+import { formatGeneratedAt } from '../lib/graph';
 import { useFocusTrap } from '../state/useFocusTrap';
 import type { ScopeDescriptor } from '../lib/types';
 
@@ -121,6 +122,13 @@ export default function ScopeSwitcher({
                         +{scope.languages.length - 4}
                       </span>
                     ) : null}
+                  </div>
+                  <div className="mt-2 flex items-center gap-1 text-[9.5px] text-faint">
+                    <Clock className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+                    <span className="truncate" title={scope.generatedAt || 'generatedAt unknown'}>
+                      scanned {scope.generatedAt ? formatGeneratedAt(scope.generatedAt) : 'unknown'}
+                      {' \u00b7 '}root {scope.rootDir || 'unknown'}
+                    </span>
                   </div>
                   {scope.error ? (
                     <p className="mt-1 break-words font-mono text-[9.5px] text-err">{scope.error}</p>
