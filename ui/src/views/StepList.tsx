@@ -213,7 +213,7 @@ export function CompactStepList({
                   onClick={() => onSelect(callee.id)}
                   className="mt-1 font-mono text-[9px] text-accent hover:text-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                 >
-                  Inspect {callee.name()}() &rarr;
+                  Inspect {callee.name}() &rarr;
                 </button>
               ) : null}
             </div>
