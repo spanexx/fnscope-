@@ -3,9 +3,9 @@
 This document records the shape of the Kotlin language adapter implemented in
 `crates/fnscope-parser/src/kotlin/`. It implements the pluggable seam in
 `docs/contract/adapter-api.md` without changing any contract type or JSON field.
-The adapter is **not registered globally**: a caller creates a private
-`Registry`, calls `register(Box::new(KotlinAdapter::new()))` and injects it into
-`fnscope_core::scan::scan_with_registry`.
+The adapter is registered in `with_builtin_adapters` in
+`crates/fnscope-parser/src/adapter.rs`; a caller that needs a private registry
+can inject one through `fnscope_core::scan::scan_with_registry`.
 
 ## 1. Public API
 
@@ -30,20 +30,21 @@ The six trait methods delegate to `src/kotlin/discover.rs` and
 ## 2. Grammar selection — why `tree-sitter-kotlin-ng`
 
 The original `tree-sitter-kotlin 0.3.8` cannot be used in this workspace. Its
-`Cargo.toml:35` pins `tree-sitter >= 0.21, < 0.23`, and tree-sitter declares
+manifest pins `tree-sitter >= 0.21, < 0.23`, and tree-sitter declares
 `links = "tree-sitter"`, so Cargo permits only one version: dependency
-resolution fails against the workspace's `tree-sitter = "0.25"` (`Cargo.toml:30`).
-It also exports no `LANGUAGE` constant — only `language()` at
-`bindings/rust/lib.rs:27`. The earlier raw-pointer `mem::transmute` bridge
-addressed the Rust type mismatch but not the native `links` conflict, so it was
-removed. **No unsafe code remains in the adapter.**
+resolution fails against the workspace's `tree-sitter = "0.25"` declared in
+`[workspace.dependencies]` in root `Cargo.toml`. It also exports no `LANGUAGE`
+constant — only `language()` in the crate's Rust bindings. The earlier
+raw-pointer `mem::transmute` bridge addressed the Rust type mismatch but not the
+native `links` conflict, so it was removed. **No unsafe code remains in the
+adapter.**
 
-The replacement is `tree-sitter-kotlin-ng = "1.1"`, verified in the cached source
-at `~/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tree-sitter-kotlin-ng-1.1.0`:
+The replacement is `tree-sitter-kotlin-ng = "1.1"`, verified from the cached
+crate source:
 
-- `bindings/rust/lib.rs:34` — `pub const LANGUAGE: LanguageFn`
-- `Cargo.toml:49-50` — depends only on `tree-sitter-language = "0.1"`
-- `Cargo.toml:52-53` — `tree-sitter 0.24` is **dev-only**, so it is not linked
+- its Rust bindings export `pub const LANGUAGE: LanguageFn`
+- its manifest depends only on `tree-sitter-language = "0.1"`
+- its manifest lists `tree-sitter 0.24` as **dev-only**, so it is not linked
   into dependents and cannot conflict with the workspace's 0.25 runtime
 
 `kotlin_language()` in `src/kotlin/mod.rs` is now simply
@@ -127,18 +128,20 @@ throw/guard errors, side effects, pure defaults and deterministic repeat. The
 data-only fixture is `tests/fixtures/kotlin_app/` with `src/Main.kt` and a
 `README.md` describing expected output.
 
-## 6. External findings for the orchestrator
+## 6. Integration status
 
 This job owns only `src/kotlin/`, `tests/fixtures/kotlin_app/` and this document.
-The following edits are **not** made here:
+The external edits were applied by the orchestrator and registration jobs:
 
-1. `Cargo.toml:30-35` — add `tree-sitter-kotlin-ng = "1.1"` to
-   `[workspace.dependencies]` and `tree-sitter-kotlin-ng.workspace = true` to
-   `crates/fnscope-parser/Cargo.toml:8-17`. **Do not add**
-   `tree-sitter-kotlin 0.3.8`: its native `links = "tree-sitter"` conflicts with
-   the workspace's 0.25 runtime and breaks dependency resolution.
-2. `crates/fnscope-parser/src/lib.rs:4-11` — add `pub mod kotlin;` so the adapter
-   can be imported. No change to `adapter.rs` is needed: callers register it via
-   `Registry::register`.
-3. The old `mem::transmute` bridge has been deleted; the adapter contains no
-   `unsafe` code and needs no further dependency-policy decision.
+1. `[workspace.dependencies]` in root `Cargo.toml` carries
+   `tree-sitter-kotlin-ng = "1.1"`, and `[dependencies]` in
+   `crates/fnscope-parser/Cargo.toml` carries the matching `.workspace = true`
+   entry. `tree-sitter-kotlin 0.3.8` is deliberately absent: its native
+   `links = "tree-sitter"` conflicts with the workspace's 0.25 runtime.
+2. The module declarations in `crates/fnscope-parser/src/lib.rs` include
+   `pub mod kotlin;`.
+3. `with_builtin_adapters` in `crates/fnscope-parser/src/adapter.rs` registers
+   `KotlinAdapter`. `Registry::register` and `scan_with_registry` remain
+   available for private registries.
+4. The old `mem::transmute` bridge has been deleted; the adapter contains no
+   `unsafe` code.

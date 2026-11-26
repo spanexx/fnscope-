@@ -54,6 +54,12 @@ D-5 closure requires correcting `docs/contract/adapters/go.md:46` and making Go'
 
 **D-5 -> Resolved 2026-11-26.** Verified by: J24 changed `golang/body.rs:328-334` so `short_var_declaration | var_declaration | assignment_statement` yields `Call` when `has_call()` is true, updated the test to expect `[Branch, Call, Call, Return]`, and corrected `docs/contract/adapters/go.md:46`. `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0`, 127 tests (parser 70) with 0 failures; the mixed polyglot scan reports 28 functions, 73 steps, 13 resolved calls and 0 dangling edges.
 
+    D-6 | 2026-11-26 | J35's Kotlin adapter doc claimed a raw-pointer bridge made tree-sitter-kotlin 0.3.8 (pins tree-sitter <0.23) safe with the workspace tree-sitter 0.25; J40 judged the pointer transmute sound | Real `cargo test --workspace` failed at dependency resolution: Cargo allows only one package with `links = "tree-sitter"`, so 0.21 and 0.25 cannot coexist in one binary regardless of pointer safety | Resolved | J35 + orchestrator
+
+D-6 closure requires replacing the dependency with `tree-sitter-kotlin-ng 1.1` (uses `tree-sitter-language 0.1`, exports `LANGUAGE`), removing all unsafe bridge code from `src/kotlin/`, re-running the real gate, and recording the result. The pointer-bridge analysis remains correct as analysis; the native-link conflict is the actual blocker.
+
+**D-6 -> Resolved 2026-11-26.** Verified by: workspace and parser manifests now declare `tree-sitter-kotlin-ng = "1.1"`; `src/kotlin/` contains no `unsafe`/`transmute` and uses `tree_sitter_kotlin_ng::LANGUAGE.into()`; grammar node kinds were remapped for the -ng grammar with all 14 Kotlin tests preserved. `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0` with 233 tests passing, and the 13-language polyglot scan reports 78 functions across 13 extensions with 0 dangling edges.
+
 ## Review rule (non-negotiable)
 
 When a review finds a gap between a locked doc and the code, append the entry

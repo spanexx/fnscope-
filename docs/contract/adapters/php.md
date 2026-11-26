@@ -8,8 +8,9 @@ schema field, `DiscoveredFn`, `BodyAnalysis`, `Step`, `ErrorSpec` or
 The adapter lives in `crates/fnscope-parser/src/php/`. It exposes exactly
 `pub struct PhpAdapter` with `pub fn new() -> Self` and `impl Default`, and
 implements all six `LanguageAdapter` methods from `docs/contract/adapter-api.md`.
-It is **not** registered globally by J38; registration is a separate, reviewed
-job.
+It is registered in `with_builtin_adapters` in
+`crates/fnscope-parser/src/adapter.rs`; `scan_with_registry` is available for
+callers that need an injected registry.
 
 ## Grammar constant (verified before coding)
 
@@ -210,31 +211,21 @@ five functions: three free functions, a helper call edge, a guarded
 `EMPTY_TEXT` throw, an `echo`/`printf` side effect, and `Calculator.scale` plus
 the `Calculator` type-index entry. `README.md` lists the expected output.
 
-## External findings (not edited by J38)
+## Integration status
 
 J38 owns only the three `src/php/` files, the fixture directory and this doc.
-The following edits are required before the adapter can be wired or built; they
-are reported, not made:
+The external edits were applied by the orchestrator and registration jobs:
 
-1. `Cargo.toml` — add `tree-sitter-php = "0.25"` to `[workspace.dependencies]`,
-   immediately after line 35 (`tree-sitter-typescript = "0.23"`) and before
-   line 36 (`ureq = ...`). The cached crate is 0.25.2 and its build script
-   compiles the grammar with `cc`, which the orchestrator gate must confirm.
-2. `crates/fnscope-parser/Cargo.toml` — add `tree-sitter-php.workspace = true`
-   to `[dependencies]`, immediately after line 16
-   (`tree-sitter-typescript.workspace = true`).
-3. `crates/fnscope-parser/src/lib.rs` — add `pub mod php;` after line 7
-   (`pub mod golang;`) and before line 8 (`pub mod python;`). No `pub use` is
-   required: callers reach `PhpAdapter` through `fnscope_parser::php::PhpAdapter`.
-4. `crates/fnscope-parser/src/adapter.rs` — **no edit in J38**. A later
-   registration job would add `use crate::php::PhpAdapter;`, a
-   `registry.register(Box::new(PhpAdapter::new()));` line in
-   `with_builtin_adapters`, and `("php", "php")` to the registry test. Doing
-   that here would violate the "do not register globally" instruction.
-5. No edit to `fnscope-core`, `fnscope-model`, `fnscope-enrich`, `ui/`,
-   `docs/contract/rust-api.md` or `docs/drift.md` is needed. If a gate proves
-   otherwise, stop and record it as architecture drift rather than adding a
-   language branch.
+1. `[workspace.dependencies]` in root `Cargo.toml` carries
+   `tree-sitter-php = "0.25"` (cached crate 0.25.2).
+2. `[dependencies]` in `crates/fnscope-parser/Cargo.toml` carries
+   `tree-sitter-php.workspace = true`.
+3. The module declarations in `crates/fnscope-parser/src/lib.rs` include
+   `pub mod php;`; callers reach `PhpAdapter` through
+   `fnscope_parser::php::PhpAdapter`.
+4. `with_builtin_adapters` in `crates/fnscope-parser/src/adapter.rs` registers
+   `PhpAdapter`. No edit to the graph builder, schema, enricher or UI was
+   needed.
 
 ## Evidence and limits
 

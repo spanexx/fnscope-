@@ -5,9 +5,9 @@ This document records the mapping implemented by the Swift adapter in
 `docs/contract/rust-api.md`: every fact is returned as an unchanged
 `DiscoveredFn`, `BodyAnalysis`, `Step`, `ErrorSpec` or `ReturnShape`.
 
-The adapter is **not registered globally** by this job. Registration is a
-separate, reviewed change; until then a caller must build a `Registry`, call
-`register(Box::new(SwiftAdapter::new()))` and pass it to `scan_with_registry`.
+The adapter is registered in `with_builtin_adapters` in
+`crates/fnscope-parser/src/adapter.rs`; `scan_with_registry` is available for
+callers that need to inject a private registry.
 
 ## Identity and extensions
 
@@ -167,24 +167,19 @@ type declared later in the file. Empty entries are omitted.
   The runtime string is an fnscope execution label, not a claim that Swift runs
   on Node.
 
-## Findings for files outside this job's ownership
+## Integration status
 
-These are reported, not edited:
+The external edits were applied by the orchestrator and registration jobs:
 
-1. `Cargo.toml` `[workspace.dependencies]` (lines 18–36) needs
+1. `[workspace.dependencies]` in root `Cargo.toml` carries
    `tree-sitter-swift = "0.7.4"` to match the cached crate.
-2. `crates/fnscope-parser/Cargo.toml` `[dependencies]` (lines 8–17) needs
-   `tree-sitter-swift.workspace = true`; without it the new module cannot
-   resolve the grammar crate.
-3. `crates/fnscope-parser/src/lib.rs` (lines 4–11) needs `pub mod swift;`;
-   without it the adapter module and its unit tests are not compiled.
-4. `crates/fnscope-parser/src/adapter.rs:67-77`
-   `Registry::with_builtin_adapters` needs
-   `registry.register(Box::new(SwiftAdapter::new()));` plus the matching import.
-   This job deliberately does not add one.
-5. `crates/fnscope-core/src/scan.rs:30` and `:519` need `**/*.swift` in the
-   default `includes`, and the default-includes assertion, otherwise a fixture
-   scan finds no Swift files.
-6. The mixed polyglot fixture under `tests/fixtures/` needs a Swift file added
-   by the registration job so one manifest contains Swift alongside the other
-   languages.
+2. `[dependencies]` in `crates/fnscope-parser/Cargo.toml` carries
+   `tree-sitter-swift.workspace = true`.
+3. The module declarations in `crates/fnscope-parser/src/lib.rs` include
+   `pub mod swift;`.
+4. `Registry::with_builtin_adapters` in `crates/fnscope-parser/src/adapter.rs`
+   registers `SwiftAdapter`.
+5. `ScanOptions::default()` and its default-includes test in
+   `crates/fnscope-core/src/scan.rs` carry `**/*.swift`.
+6. The mixed polyglot fixture includes a Swift file, so one manifest contains
+   Swift alongside the other languages.

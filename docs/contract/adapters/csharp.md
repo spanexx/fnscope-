@@ -5,9 +5,9 @@ This document records the mapping implemented by the C# adapter in
 `docs/contract/rust-api.md`: every fact is returned as an unchanged
 `DiscoveredFn`, `BodyAnalysis`, `Step`, `ErrorSpec` or `ReturnShape`.
 
-The adapter is **not registered globally** by this job. Registration is a
-separate, reviewed change; until then a caller must build a `Registry`, call
-`register(Box::new(CSharpAdapter::new()))` and pass it to `scan_with_registry`.
+The adapter is registered in `with_builtin_adapters` in
+`crates/fnscope-parser/src/adapter.rs`. `fnscope_core::scan::scan_with_registry`
+is available for callers that want to inject a private `Registry`.
 
 ## Identity and extensions
 
@@ -24,11 +24,11 @@ The adapter uses `tree_sitter_c_sharp::LANGUAGE` converted with
 exactly as the Python and Go adapters convert their constants. The constant was
 verified from the cached crate source:
 
-- `tree-sitter-c-sharp-0.24.0/bindings/rust/lib.rs:28` —
+- `LANGUAGE` in the cached crate's Rust bindings —
   `pub const LANGUAGE: LanguageFn = unsafe { LanguageFn::from_raw(tree_sitter_c_sharp) };`
-- `LanguageFn` comes from `tree-sitter-language 0.1`
-  (`tree-sitter-c-sharp-0.24.0/Cargo.toml`), so it converts into the workspace's
-  `tree-sitter 0.25` without a version-specific `Into` impl in this crate.
+- `LanguageFn` comes from `tree-sitter-language 0.1` (the cached crate's
+  manifest), so it converts into the workspace's `tree-sitter 0.25` without a
+  version-specific `Into` impl in this crate.
 - The adapter builds a fresh `Parser` in `parse_tree` (discovery) and in
   `analyze` (body); a parse failure yields an empty `Vec`/map or
   `BodyAnalysis::default()`. No partial manifest is invented.
@@ -180,38 +180,28 @@ functions and evidence. Glob exclusion stays core's job.
 - CR check via `tr -cd '\r' < file | wc -c` -> `0` for `mod.rs`, `discover.rs`,
   `body.rs`, `App.cs` and `README.md`. No `sed 's/\r$//'` was used at any point
   (L11); CR normalization would use `tr -d '\r'` only.
-- Grammar constant verified from the cached crate source at
-  `tree-sitter-c-sharp-0.24.0/bindings/rust/lib.rs:28`; wrapper nodes verified
-  from `tree-sitter-c-sharp-0.24.0/src/node-types.json` and the relevant rules
-  in `grammar.js` (`compilation_unit`, `record_declaration`, `parameter`,
+- Grammar constant verified from the cached crate's Rust bindings (`LANGUAGE`);
+  wrapper nodes verified from its `node-types.json` and the relevant rules in
+  `grammar.js` (`compilation_unit`, `record_declaration`, `parameter`,
   `variable_declarator`, `local_declaration_statement`,
   `local_function_statement`, `throw_statement`).
 
-## Findings for files outside this job's ownership
+## Integration status
 
-These are reported, not edited:
+All external edits were applied by the orchestrator and registration jobs;
+they are recorded here with stable symbol references, not as pending work:
 
-1. `Cargo.toml` `[workspace.dependencies]` (lines 30–38, after line 32
-   `tree-sitter-cpp = "0.23.4"`) needs `tree-sitter-c-sharp = "0.24"`. That is
-   the version cached in the WSL registry; it depends on
-   `tree-sitter-language 0.1`, so `LANGUAGE.into()` is compatible with the
-   workspace's `tree-sitter 0.25`. Do not assume the `0.25` series used by
-   Go/Python/JavaScript.
-2. `crates/fnscope-parser/Cargo.toml` `[dependencies]` (lines 12–17, after line
-   13 `tree-sitter-go.workspace = true`) needs
-   `tree-sitter-c-sharp.workspace = true`. Without it the three owned `.rs`
-   files cannot resolve `tree_sitter_c_sharp::LANGUAGE`.
-3. `crates/fnscope-parser/src/lib.rs` (module list at lines 4–11, e.g. after
-   line 5 `pub mod body;`) needs `pub mod csharp;`. Without it the module and
-   its `#[cfg(test)]` tests are not compiled.
-4. `crates/fnscope-parser/src/adapter.rs` needs
-   `use crate::csharp::CSharpAdapter;` near lines 13–17 and a
-   `register(Box::new(CSharpAdapter::new()))` line in
-   `Registry::with_builtin_adapters` (lines 67–76). This job deliberately adds
-   **neither**: global registration is a separate, reviewed change.
-5. `crates/fnscope-core/src/scan.rs` `ScanOptions::default()` includes list
-   (lines 29–41, after line 37 `**/*.java`) needs `**/*.cs`, and the matching
-   expectation in `default_options_match_the_contract` (lines 529–541, after
-   line 537 `**/*.java`) needs the same entry, otherwise a fixture scan finds
-   no C# files. No graph-builder, schema, enricher or UI change is required;
-   the plugin invariant holds.
+1. `[workspace.dependencies]` in root `Cargo.toml` carries
+   `tree-sitter-c-sharp = "0.24"`, the version cached in the WSL registry. It
+   depends on `tree-sitter-language 0.1`, so `LANGUAGE.into()` is compatible
+   with the workspace's `tree-sitter 0.25`.
+2. `[dependencies]` in `crates/fnscope-parser/Cargo.toml` carries
+   `tree-sitter-c-sharp.workspace = true`.
+3. The module declarations in `crates/fnscope-parser/src/lib.rs` include
+   `pub mod csharp;`.
+4. `Registry::with_builtin_adapters` in `crates/fnscope-parser/src/adapter.rs`
+   registers `CSharpAdapter`; `scan_with_registry` remains available for
+   injected registries.
+5. `ScanOptions::default()` and its default-includes test in
+   `crates/fnscope-core/src/scan.rs` carry `**/*.cs`. No graph-builder, schema,
+   enricher or UI change is required; the plugin invariant holds.

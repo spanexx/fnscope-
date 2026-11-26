@@ -1,6 +1,6 @@
 # fnscope-base — PRD + TRD
 
-Status: SHIPPED (base TS/JS feature; the Rust addendum below is IN PROGRESS until its gates pass)
+Status: SHIPPED (base TS/JS feature and the polyglot addendum below are both SHIPPED)
 
 This is the product and technical requirement set for the first feature of
 fnscope. It is derived from `fnscope_architecture_agent_build_spec.md` (the
@@ -218,34 +218,53 @@ J06/J08 fixes. These are recorded results, not agent claims.
 
 Known limits are recorded in `VERIFY.md` in this folder.
 
-## Rust source support (addendum)
+## Polyglot source support (addendum) — SHIPPED
 
-Added after the base feature shipped, in response to a request to scan a Rust
-tree (`crates/`) with the same explorer. Status of this addendum: **IN PROGRESS**
-— the base feature remains SHIPPED, but no Rust verification gate has passed
-yet. `VERIFY.md` records the pending checks.
+Added after the base feature shipped, first to scan a Rust tree (`crates/`) with
+the same explorer, then extended to 13 named languages through the pluggable
+adapter seam locked in `docs/contract/adapter-api.md`. Status of this addendum:
+**SHIPPED**. The base feature remains SHIPPED; verification evidence is below
+and in `VERIFY.md`.
 
-- **Requirement**: fnscope must scan `.rs` files and build the same usable
-  function graph for them as for TS/JS, so `fnscope scan crates/` reports real
-  functions rather than zero files. This extends section 1 (product goal) and
-  section 4 (AST extraction); it does not change the UI or server routes.
-- **Deterministic extraction**: Rust source is parsed with `tree-sitter-rust`
-  through the existing `fnscope-parser` pipeline (`Lang::Rust`, `discover` and
-  `analyze`). Functions, signatures, ordered steps, purity/permissions, throws
-  and `ast_hash` follow the same deterministic rules as section 4. Structural
-  truth stays AST-based; enrichment stays optional and hash-cached.
-- **Same schema**: Rust functions produce the same `FnGraph` / `FnRecord`
-  types, `tool: "fnscope"`, `schemaVersion: "1.0.0"` and `sha256:` hashes
-  defined in section 5 and in `docs/contract/rust-api.md`. There is no new
-  manifest file, field or schema version for Rust.
-- **Default globs**: `**/*.rs` joins the default includes in section 4 and in
-  `ScanOptions`; `**/target/**` joins the default excludes (alongside
-  `node_modules`, `dist` and test-file patterns). Users can still override
-  these with `--include` / `--exclude`.
-- **Non-goal**: executing Rust. Node invocation (section 9) remains a TS/JS
-  runner: it imports a TypeScript/JavaScript module through Node and is not a
-  Rust executor. Runtime labels stay `universal` / `node20` as carried by the
-  schema, including for Rust functions; they describe the recorded target
-  environment, not a claim that Node can run Rust. Invoking a Rust function
-  yields the deterministic simulated trace. Section 10's "no languages other
-  than TS/TSX/JS/JSX" non-goal is therefore superseded for scanning only.
+- **Requirement**: fnscope must scan 13 named languages and build the same
+  usable function graph for them as for TS/JS, so `fnscope scan crates/`
+  reports real functions rather than zero files. This extends section 1
+  (product goal) and section 4 (AST extraction); it does not change the UI or
+  server routes. Adding a language requires zero changes to the core graph
+  builder, schema, enricher or UI.
+- **Deterministic extraction**: every language is parsed by its own
+  `LanguageAdapter`, which returns the unchanged `DiscoveredFn`,
+  `BodyAnalysis`, `Step`, `ErrorSpec` and `ReturnShape` types. Functions,
+  signatures, ordered steps, purity/permissions, throws and `ast_hash` follow
+  the same deterministic rules as section 4. Structural truth stays AST-based;
+  enrichment stays optional and hash-cached.
+- **Same schema**: all languages produce the same `FnGraph` / `FnRecord` types,
+  `tool: "fnscope"`, `schemaVersion: "1.0.0"` and `sha256:` hashes defined in
+  section 5 and in `docs/contract/rust-api.md`. There is no new manifest file,
+  field or schema version per language.
+- **Default globs**: `**/*.rs`, `**/*.py`, `**/*.go`, `**/*.java`, `**/*.c`,
+  `**/*.cpp`, `**/*.cc`, `**/*.cs`, `**/*.kt`, `**/*.php`, `**/*.rb` and
+  `**/*.swift` join the TS/JS includes in section 4 and in `ScanOptions`;
+  `**/target/**`, `**/__pycache__/**` and `**/.fnscope/**` join the default
+  excludes. Users can still override these with `--include` / `--exclude`.
+- **Non-goal**: executing anything but TS/JS. Node invocation (section 9)
+  remains a TypeScript/JavaScript runner and is not an executor for Rust,
+  Python, Go, Java, C, C++, C#, Kotlin, Ruby, PHP or Swift. Runtime labels stay
+  `universal` / `node20` as carried by the schema for every language; they
+  describe the recorded target environment, not a claim that Node can run that
+  language. Invoking a non-TS/JS function yields the deterministic simulated
+  trace. Section 10's "no languages other than TS/TSX/JS/JSX" non-goal is
+  therefore superseded for scanning only.
+
+### Verification evidence (polyglot addendum)
+
+Recorded by the orchestrator in WSL Debian after the final adapter batch:
+
+- `cargo test --workspace` -> 233 tests green (parser: 176).
+- Real 13-language mixed scan -> 78 functions, 159 steps, 33 resolved calls,
+  38 caller edges, 23 error facts and 0 dangling edges.
+- `bash scripts/test-all.sh` -> `ALL_TESTS_OK`.
+- `bash scripts/check-culture.sh` -> `CULTURE_OK`.
+- Drift D-1 through D-6 are all `Resolved` in `docs/drift.md`.
+
+More detail, including known limits, is in `VERIFY.md`.

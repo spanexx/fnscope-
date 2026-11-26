@@ -384,6 +384,14 @@ Failure class: iterator temporary at tail expression in a newly added helper.
 Pivot: exact line sent back to J36.
 Next: re-merge, gate, 13-language scan, culture, commit, docs closure.
 
+### 42 — 2026-11-26
+Action: Final gate green; 13-language polyglot scan, culture check and full harness all green; committed the final five adapters.
+Verification: `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0`, 233 tests (parser 176). Mixed scan -> 78 functions across .ts/.js/.rs/.py/.go/.java/.c/.cpp/.cs/.kt/.rb/.php/.swift, 159 steps, 33 resolved calls, 38 caller edges, 23 error facts, 0 dangling. `CULTURE_OK`, `ALL_TESTS_OK`. D-6 Resolved. `git log --oneline` -> `d6b02cf feat: Kotlin, C#, Ruby, PHP and Swift language adapters`.
+Verdict: pass for code; docs closure in progress (J44).
+Failure class: none in this iteration.
+Pivot: docs job updates README/PRD/IMPL/VERIFY and removes stale line numbers from adapter docs.
+Next: commit docs batch, final cleanup audit, final answer.
+
 ### Review notes (orchestrator)
 - J01 (model) reviewed: exact camelCase serde names, aggregated `validate`, 10 tests. One accepted deviation: uppercase hex accepted in `astHash` (still 64 hex chars). No conflict.
 - J09 (fixture) reviewed: 8 core functions, explicit `.ts` imports, `dryRun` path for safe invoke.

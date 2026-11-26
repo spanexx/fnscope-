@@ -1,12 +1,13 @@
 # fnscope-base — IMPL (implementation plan)
 
-Status: SHIPPED (base TS/JS feature; Rust addendum J15-J18 pending verification)
+Status: SHIPPED (base TS/JS feature, Rust addendum J15-J18, adapter seam J21 and polyglot jobs J30-J44)
 
-This maps the fourteen original delivered jobs to files and to the gate each
-job had to pass. The original eleven are listed in `.reports/goal-build-fnscope.md`
+This maps the delivered jobs to files and to the gate each job had to pass.
+The original eleven are listed in `.reports/goal-build-fnscope.md`
 (lines 27-48); J12-J14 were added during verification (iterations 9-10). J15-J18
-are the Rust addendum jobs dispatched in iteration 15; J18 (this documentation
-update) is still in progress.
+are the Rust addendum jobs, J21 is the adapter-seam refactor, and J30-J44 are
+the Java/C/C++/Kotlin/C#/Ruby/PHP/Swift adapters, their reviews, registration,
+the Kotlin grammar replacement and final docs closure. All are SHIPPED.
 Jobs ran only on disjoint file sets. The orchestrator owned the workspace
 root, the parser type and lib files, the contract, the UI placeholders, and
 every gate. An agent wrote files and reported; it did not run cargo or claim
@@ -35,11 +36,26 @@ its own work passed.
 | J17 | `tests/fixtures/rust_app/` | Rust fixture project for real scans |
 | J18 | `README.md` (root), `docs/features/fnscope-base/` | user-facing and feature docs for the Rust addendum |
 | J21 | `crates/fnscope-parser/**`, `crates/fnscope-core/**`, `docs/contract/adapter-api.md`, this file | language-adapter trait + registry; TS/JS and Rust grammar moved behind adapters; one registry lookup in core; `scan_with_registry` injection seam |
+| J30 | `crates/fnscope-parser/src/java/`, `docs/contract/adapters/java.md` | Java adapter: 18 tests, wrapper-node handling, throws and type index |
+| J31 | `crates/fnscope-parser/src/c_lang/`, `docs/contract/adapters/c.md` | C adapter: 11 tests |
+| J32 | `crates/fnscope-parser/src/cpp/`, `docs/contract/adapters/cpp.md` | C++ adapter: 14 tests |
+| J33 | `.reports/reviews/J30-J32.md` | independent review of Java/C/C++ -> PASS, 0 findings |
+| J34 | registry wiring in `crates/fnscope-parser/src/adapter.rs`, `src/lib.rs`, manifests and core default globs | registered Java/C/C++ in `with_builtin_adapters` |
+| J35 | `crates/fnscope-parser/src/kotlin/`, `docs/contract/adapters/kotlin.md` | Kotlin adapter; later ported to `tree-sitter-kotlin-ng` by J42 |
+| J36 | `crates/fnscope-parser/src/csharp/`, `docs/contract/adapters/csharp.md` | C# adapter: primary constructors, records, local functions |
+| J37 | `crates/fnscope-parser/src/ruby/`, `docs/contract/adapters/ruby.md` | Ruby adapter |
+| J38 | `crates/fnscope-parser/src/php/`, `docs/contract/adapters/php.md` | PHP adapter: 16 tests |
+| J39 | `crates/fnscope-parser/src/swift/`, `docs/contract/adapters/swift.md` | Swift adapter: class/struct/actor/extension/enum handling |
+| J40 | `.reports/reviews/J35-J39.md` | strict review of the final five -> FAIL with 3 findings; Kotlin pointer bridge judged SOUND |
+| J41 | registry wiring in `crates/fnscope-parser/src/adapter.rs`, `src/lib.rs`, manifests and core default globs | registered Kotlin/C#/Ruby/PHP/Swift in `with_builtin_adapters` |
+| J42 | `crates/fnscope-parser/src/kotlin/` | replaced the raw-pointer bridge with the `tree-sitter-kotlin-ng` grammar |
+| J43 | root `Cargo.toml`, `crates/fnscope-parser/Cargo.toml` | renamed the two grammar dependency lines |
+| J44 | `README.md`, `docs/features/fnscope-base/{PRD-TRD,IMPL,VERIFY}.md`, four `docs/contract/adapters/*.md` | final docs closure: SHIPPED status, polyglot verification, stable F3 references |
 
-The Rust addendum (J15-J18) is **pending verification**: its jobs write files
-only and the orchestrator reviews each one before running any gate. No Rust
-gate has passed yet, so the addendum is not marked SHIPPED; the checks that
-will be run are listed in `VERIFY.md` with `PENDING` verdicts.
+The Rust addendum (J15-J18), the adapter seam (J21) and the polyglot jobs
+(J30-J44) are all **SHIPPED**. The final gate recorded 233 green tests and a
+13-language mixed scan; those results are in `VERIFY.md`. Jobs wrote files only
+and the orchestrator reviewed each one before running any gate.
 
 Every fix was reviewed and sent back by the orchestrator rather than
 self-approved: compiler errors (J02/J03 borrow and type errors), test

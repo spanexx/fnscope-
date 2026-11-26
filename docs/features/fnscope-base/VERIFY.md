@@ -35,16 +35,10 @@ run.
 
 ## Known limits (do not read these as passes)
 
-- **Node invocation is best effort.** With `--invoke node`, fnscope tries a
-  real Node export. If the chosen Node is missing or too old to import `.ts`
-  files, it falls back to a simulated trace and adds an `error` field saying
-  why. The request still succeeds, so a simulation is not proof that code ran.
-- **Constructors are listed as functions.** Class constructors appear as
-  function records, so the sample fixture's function list includes
-  `constructor`. That is expected, not a duplicate or a bug.
-- **Cross-file type resolution is bounded.** Return fields are unpacked from
-  aliases and interfaces declared inside the scanned set. Types imported from
-  outside the scan, or from libraries, are not resolved into `returns.fields`.
+The limits that apply to both the base and the polyglot results are recorded
+in "Polyglot verification" below: the Node runner executes only TS/JS exports,
+constructors are listed as functions, and cross-file type resolution is best
+effort. A simulated trace is not proof that project code ran.
 
 ## Where the evidence lives
 
@@ -54,18 +48,37 @@ run.
 - Raw browser audit: `.reports/ui-browser.md`
 - Orchestrator iterations: `.reports/goal-build-fnscope.md`
 
-## Rust addendum (pending)
+## Polyglot verification
 
-The Rust source support in J15-J18 is not verified yet. The orchestrator will
-run the checks below in WSL Debian after integrating and reviewing each job.
-Nothing in this section is a recorded result: every verdict is `PENDING` until
-the orchestrator replaces it with evidence.
+The orchestrator ran these checks in WSL Debian after J41-J43 integrated the
+final adapter batch and resolved the Kotlin grammar conflict. These are
+recorded results, not agent claims.
 
-| What will be checked | Command / action | Verdict |
+| What was checked | Command / action | Marker / result |
 |---|---|---|
-| Workspace tests with the Rust backend | `cargo test --workspace` | `PENDING` |
-| Real scan of the Rust fixture | `fnscope scan tests/fixtures/rust_app` and inspect the emitted `fn-graph.json` (functions found, schema valid, deterministic steps and `calledBy` edges) | `PENDING` |
-| Real scan of the Rust source tree | `fnscope scan crates` and confirm `.rs` files are discovered, `target/` is excluded, and functions are extracted into the same schema | `PENDING` |
+| Full workspace tests with all adapters | `cargo test --workspace` | 233 tests green (parser: 176) |
+| 13-language mixed scan | real scan of the polyglot fixture | 78 functions, 159 steps, 33 resolved calls, 38 caller edges, 23 error facts, 0 dangling |
+| Full repo gate | `bash scripts/test-all.sh` | `ALL_TESTS_OK` |
+| Culture gate | `bash scripts/check-culture.sh` | `CULTURE_OK` |
+| Drift closure | `docs/drift.md` | D-1 through D-6 `Resolved` |
 
-No result is claimed for Rust invocation: `--invoke node` remains a TS/JS
-runner and does not execute Rust code.
+The mixed scan covered `.ts`, `.js`, `.rs`, `.py`, `.go`, `.java`, `.c`,
+`.cpp`, `.cs`, `.kt`, `.rb`, `.php` and `.swift`. Kotlin is parsed with
+`tree-sitter-kotlin-ng`.
+
+### Known limits (do not read these as passes)
+
+- **The Node runner executes only TS/JS exports.** `--invoke node` imports a
+  TypeScript/JavaScript module through Node. Rust, Python, Go, Java, C, C++,
+  C#, Kotlin, Ruby, PHP and Swift functions are inspected and navigated, but
+  invoking one returns the deterministic simulated trace. There is no executor
+  for those languages. Node invocation is best effort: an incompatible Node
+  falls back to a simulated trace with an `error` field instead of running the
+  function.
+- **Constructors are listed as functions.** Class constructors appear as
+  function records alongside regular methods. That is expected, not a
+  duplicate or a bug.
+- **Cross-file type resolution is best effort.** Return fields are unpacked
+  from aliases and interfaces declared inside the scanned set. Types imported
+  from outside the scan, or from libraries, are not resolved into
+  `returns.fields`.

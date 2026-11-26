@@ -2,7 +2,7 @@
 
 ## What it does
 
-fnscope reads a TypeScript, JavaScript or Rust source tree and builds a deterministic function graph: signatures, ordered execution steps, upstream callers and downstream calls. It then serves a local web explorer with four views (Raw, Split, Preview and 1-Hop Map) plus a sandbox invoke panel. An optional, hash-cached LLM pass can fill in plain-English descriptions and sample arguments. There is no account, no cloud service and no telemetry: it is a single local binary. The binary is built in Rust and the React UI is bundled into it, so there is no separate frontend to install or run.
+fnscope reads 13 named languages — TypeScript, TSX, JavaScript, JSX, Rust, Python, Go, Java, C, C++, C#, Kotlin, Ruby, PHP and Swift — across 16 file suffixes, and builds a deterministic function graph: signatures, ordered execution steps, upstream callers and downstream calls. It then serves a local web explorer with four views (Raw, Split, Preview and 1-Hop Map) plus a sandbox invoke panel. An optional, hash-cached LLM pass can fill in plain-English descriptions and sample arguments. There is no account, no cloud service and no telemetry: it is a single local binary. The binary is built in Rust and the React UI is bundled into it, so there is no separate frontend to install or run.
 
 ## Quick start
 
@@ -15,7 +15,7 @@ cargo build --release -p fnscope
 ./target/release/fnscope ./tests/fixtures/rust_app/src
 ```
 
-Then open <http://localhost:4310>. Press Ctrl-C to stop the server. The second and third commands are the bare-target form of `open`: each scans once, serves the UI and watches for file changes. `.rs` files are scanned by default alongside `.ts`, `.tsx`, `.js` and `.jsx`, so the same command also works on a Rust tree such as `crates/`.
+Then open <http://localhost:4310>. Press Ctrl-C to stop the server. The second and third commands are the bare-target form of `open`: each scans once, serves the UI and watches for file changes. All 16 suffixes are scanned by default — `.ts`, `.tsx`, `.js`, `.jsx`, `.rs`, `.py`, `.go`, `.java`, `.c`, `.cpp`, `.cc`, `.cs`, `.kt`, `.php`, `.rb` and `.swift` — so the same command works on a Rust tree such as `crates/` or a mixed-language project.
 
 From Windows PowerShell, the same steps look like this (the WSL shell inherits your current directory):
 
@@ -46,7 +46,7 @@ fnscope scan [OPTIONS] <TARGET_DIR>
 | `--include <INCLUDE>` | Glob pattern of files to include; repeatable |
 | `--exclude <EXCLUDE>` | Glob pattern of files to exclude; repeatable |
 
-Defaults: includes `**/*.ts`, `**/*.tsx`, `**/*.js`, `**/*.jsx`, `**/*.rs`; excludes `node_modules`, `dist`, `**/target/**`, `*.test.ts`, `*.spec.ts` and similar.
+Defaults: includes `**/*.ts`, `**/*.tsx`, `**/*.js`, `**/*.jsx`, `**/*.rs`, `**/*.py`, `**/*.go`, `**/*.java`, `**/*.c`, `**/*.cpp`, `**/*.cc`, `**/*.cs`, `**/*.kt`, `**/*.php`, `**/*.rb`, `**/*.swift`; excludes `node_modules`, `dist`, `**/target/**`, `**/.fnscope/**`, `**/__pycache__/**`, test/spec patterns and dot-directories.
 
 ### `open`
 
@@ -64,6 +64,28 @@ fnscope open [OPTIONS] [TARGET_DIR]
 | `--model <MODEL>` | Model name for enrichment |
 
 `fnscope <TARGET>` is shorthand for `fnscope open <TARGET>`, and the `open` flags also work at the top level, so `fnscope ./src --port 4311` and `fnscope open ./src --port 4311` are the same.
+
+## Languages
+
+Every suffix is claimed by one adapter in the built-in registry. Adapter modules live under `crates/fnscope-parser/src/`; adding a language means implementing `LanguageAdapter` and registering it, with no change to core's graph builder.
+
+| Suffixes | Named language | Adapter module |
+| --- | --- | --- |
+| `.ts`, `.tsx` | TypeScript / TSX | `typescript` (one `TypeScriptAdapter` instance per grammar) |
+| `.js`, `.jsx` | JavaScript / JSX | `typescript` (one `TypeScriptAdapter` instance per grammar) |
+| `.rs` | Rust | `rust` |
+| `.py` | Python | `python` |
+| `.go` | Go | `golang` |
+| `.java` | Java | `java` |
+| `.c` | C | `c_lang` |
+| `.cpp`, `.cc` | C++ | `cpp` |
+| `.cs` | C# | `csharp` |
+| `.kt` | Kotlin | `kotlin` |
+| `.php` | PHP | `php` |
+| `.rb` | Ruby | `ruby` |
+| `.swift` | Swift | `swift` |
+
+Kotlin is parsed with `tree-sitter-kotlin-ng`; the older `tree-sitter-kotlin` pins a tree-sitter version that conflicts with the workspace runtime. `scan_with_registry` lets a caller inject a private registry instead of using the built-in one.
 
 ## Artifacts
 
@@ -90,7 +112,7 @@ Offline behavior: with no key, `--enrich` prints a warning and falls back to det
 The explorer's invoke panel calls `POST /api/invoke`. How it runs depends on `--invoke`:
 
 - `simulate` (default, and what the smoke tests use) — returns a deterministic trace built from the function's steps. It never runs project code.
-- `node` — writes a temporary runner, imports the target module and calls the real named export (class methods as `Class.method`), then returns JSON with `ok`, `data`, `error` and `trace`.
+- `node` — writes a temporary runner, imports the target module and calls the real named export (class methods as `Class.method`), then returns JSON with `ok`, `data`, `error` and `trace`. This runner executes TypeScript/JavaScript exports only; it is not an executor for the other languages.
 
 Real execution of TypeScript needs Node 24, which strips TypeScript types by default and resolves `.ts` specifiers as written. `FNSCOPE_NODE` selects which Node executable to use; if unset, fnscope uses `node` from PATH. Be warned: Node invocation is best effort. If the chosen Node is missing or incompatible (for example, an older Node that cannot import `.ts` files), fnscope falls back to the simulated trace and adds an `error` field explaining why. It does not fail the request.
 
@@ -104,8 +126,8 @@ Run these in WSL. Neither script should be run while agents are still writing cr
 ## Architecture map
 
 - `fnscope-model` — the JSON schema types shared by every crate, including the graph, cache and invoke shapes.
-- `fnscope-parser` — tree-sitter discovery of functions and analysis of their bodies for steps, errors and purity, for TS/JS and Rust (via `tree-sitter-rust`).
-- `fnscope-core` — the scanner: globs files, builds the graph, computes `astHash`, writes and reads the manifest.
+- `fnscope-parser` — tree-sitter adapters for all 13 languages, each owning its grammar and the extraction of functions, steps, errors, types and purity behind `LanguageAdapter`.
+- `fnscope-core` — the scanner: globs files, looks up one adapter per suffix, builds the graph, computes `astHash`, writes and reads the manifest.
 - `fnscope-enrich` — hash-cached LLM enrichment, cache read/write and the no-op offline fallback.
 - `fnscope-server` — the axum HTTP routes, embedded UI assets and `/api/invoke` in simulate or node mode.
 - `fnscope-cli` — the `fnscope` binary: clap parsing and the `scan` / `open` commands.
@@ -113,8 +135,9 @@ Run these in WSL. Neither script should be run while agents are still writing cr
 
 ## Limits
 
-- Rust source support is new: `.rs` files are extracted with `tree-sitter-rust` into the same `fn-graph.json` schema (`schemaVersion: 1.0.0`) as TS/JS — no separate manifest format or schema version. Runtime labels remain `universal` or `node20` even for Rust functions; they describe the target environment carried in the graph, not a Rust executor.
-- Node invocation does **not** execute Rust code. `--invoke node` is a TS/JS runner: it imports a TypeScript/JavaScript module through Node. Rust functions are inspected and navigated like any other function, but invoking one returns the deterministic simulated trace, never a real Rust execution.
-- Cross-file type resolution covers type aliases and interfaces within the scanned set; types from outside it fall back to their written names.
-- Class constructors are currently listed as functions alongside regular methods.
-- Node invocation is best effort: incompatible Node versions fall back to a simulated trace with an `error` field instead of executing the function.
+- **Only TS/JS are executed.** `--invoke node` is a TypeScript/JavaScript runner: it imports a `.ts`/`.tsx`/`.js`/`.jsx` module through Node. Rust, Python, Go, Java, C, C++, C#, Kotlin, Ruby, PHP and Swift functions are inspected and navigated like any other function, but invoking one returns the deterministic simulated trace — there is no executor for those languages.
+- **Kotlin uses `tree-sitter-kotlin-ng`.** The older `tree-sitter-kotlin` pins an incompatible tree-sitter version; `-ng` is the grammar actually in use.
+- **Runtime labels are carried data, not executors.** `universal` and `node20` describe the target environment recorded in the graph for every language; they do not promise that Node can run that language.
+- **Cross-file type resolution is best effort.** Types declared inside the scanned set are unpacked into return fields; imported or external types fall back to their written names.
+- **Class constructors are listed as functions** alongside regular methods.
+- **Node invocation is best effort.** An incompatible Node version falls back to a simulated trace with an `error` field instead of executing the function.
