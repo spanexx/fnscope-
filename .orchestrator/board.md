@@ -36,6 +36,17 @@ contract check, and culture gate are green. Docs commit next, then job worktrees
 Workers never build `ui/dist`; the orchestrator runs `bash ui/build.sh` after integration.
 Waves 4–6 are parallel only because they own disjoint directories.
 
+## Running implementation jobs
+
+| Job | Work | Worktree / branch | Model | Status |
+|---|---|---|---|---|
+| J1 | Server scope registry + scoped API | `~/.config/superpowers/worktrees/fnscope/feature-scope-server` / `feature/scope-server` | paid fallback `opencode-go/deepseek-v4.1-flash` | running |
+| J2 | UI shell, theme, API, state, primitives | `~/.config/superpowers/worktrees/fnscope/feature-ui-foundation` / `feature/ui-foundation` | paid fallback `opencode-go/deepseek-v4.1-flash` | running |
+| J3 | Two-scope workspace fixture | `~/.config/superpowers/worktrees/fnscope/feature-workspace-fixtures` / `feature/workspace-fixtures` | not started | ready |
+
+Free-tier implementation failed before any edit; the paid fallback is the documented last-resort
+lane. Keep paid concurrency limited and integrate one reviewed commit at a time.
+
 ## Shared locks
 
 - `docs/contract/rust-api.md`

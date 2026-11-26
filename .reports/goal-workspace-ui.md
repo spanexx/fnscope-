@@ -94,3 +94,17 @@ Failure class: none; free-tier fallback recorded in L-2/L-4
 Pivot: use the detector self-tests and the origin mapping probe as the guardrail, not a prose
 claim.
 Next: commit the docs pack and guardrail batch, then create the server/UI job worktrees.
+
+### 5 — 2026-11-26T23:35
+
+Action: committed the docs pack (`50f0395`) and guardrails (`3f32c5f`); created the J1 server,
+J2 UI-foundation and J3 fixture worktrees. Launched J1/J2 on the free `#high` model; both failed
+immediately with the free usage limit before editing. Relaunched J1/J2 on the paid orchestrator
+model as the documented last-resort fallback.
+Verification: free-tier error captured for both jobs; all three job worktrees clean; paid
+sessions started; no implementation files integrated yet. Culture gate green before launch.
+Verdict: pass (paid fallback running; budget risk recorded)
+Failure class: free-tier exhaustion
+Pivot: paid fallback, limited concurrency; if the paid budget tightens, finish one critical job
+at a time and use the orchestrator directly for integration.
+Next: review J1/J2 commits, integrate one at a time, then launch CLI/explorer/views/invoke.

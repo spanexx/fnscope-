@@ -138,6 +138,9 @@ Append one row per completed child. Link the job/commit/review where possible.
 | 2026-11-26 | S4 process fallback | scout | hy4-flash-free#high | deep research | 5 | 5 | 5 | n/a | 5 | 5 | pass | Exact gate/guardrail findings; used in Phase 0. |
 | 2026-11-26 | pack critic | critic | mimo-v2.6-flash-free | process review | — | — | — | — | — | 1 | fail | Free usage limit; relaunched on Hy4. |
 | 2026-11-26 | pack critic follow-up | critic | hy4-flash-free#high | process review | 5 | 5 | 5 | n/a | 5 | 4 | pass | Confirmed all blocker/high fixes; `NO_REMAINING_BLOCKERS`; first pass hit max steps. |
+| 2026-11-26 | J1 server | impl | deepseek-v4.1-flash-free#high | server implementation | — | — | — | — | — | 1 | fail | Free usage limit reached before the first edit; relaunched on the paid fallback. |
+| 2026-11-26 | J2 UI foundation | impl | deepseek-v4.1-flash-free#high | UI implementation | — | — | — | — | — | 1 | fail | Free usage limit reached before the first edit; relaunched on the paid fallback. |
+| 2026-11-26 | J1/J2 paid fallback | impl | opencode-go/deepseek-v4.1-flash | implementation | — | — | — | — | — | — | running | Last-resort lane after the free tier was exhausted; budget risk recorded. |
 
 ## Calibration queue
 
