@@ -4,7 +4,7 @@
 //! becomes visible without restarting the server. All handlers are total: a missing
 //! or corrupt manifest produces a JSON error response instead of a panic.
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{mpsc, Arc};
@@ -12,13 +12,27 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[cfg(test)]
 use axum::body::Body;
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{Html, IntoResponse, Response};
+use axum::extract::{DefaultBodyLimit, Path as AxumPath, Request, State};
+use axum::http::{header, StatusCode};
+use axum::middleware::{self, Next};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use fnscope_model::{FnGraph, InvokeRequest, InvokeResponse, TraceEntry};
+use fnscope_model::{FnGraph, FnRecord, InvokeRequest, InvokeResponse, TraceEntry};
 use serde_json::{json, Value};
+
+mod workspace;
+
+pub use workspace::{
+    is_valid_scope_id, serve_workspace, validate_workspace_config, workspace_router, LanguageCount,
+    ScopeConfig, ScopeDescriptor, ScopeList, WorkspaceConfig, DEFAULT_SCOPE,
+};
+
+/// Policy for the embedded shell and bundles; the UI is fully local and loads no remote asset.
+const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; script-src 'self'; \
+     style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; \
+     connect-src 'self'; worker-src 'none'; base-uri 'none'; frame-ancestors 'none'; \
+     form-action 'none'";
 
 /// Explorer shell embedded at build time; the UI job replaces the placeholder file.
 pub const INDEX_HTML: &str = include_str!("../../../ui/dist/index.html");
@@ -28,7 +42,8 @@ pub const APP_JS: &str = include_str!("../../../ui/dist/app.js");
 pub const APP_CSS: &str = include_str!("../../../ui/dist/app.css");
 
 /// Chooses how `/api/invoke` answers: deterministic replay or a real Node process.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum InvokeMode {
     /// Build a trace from the manifest's steps without executing any code.
     Simulate,
@@ -48,32 +63,147 @@ pub struct ServerConfig {
 }
 
 /// Handler state shared by all routes; cheaply cloned behind an `Arc`.
-#[derive(Debug)]
-struct AppState {
-    manifest_path: PathBuf,
-    invoke_mode: InvokeMode,
+pub(crate) struct AppState {
+    /// Scope registry plus its validated-manifest cache.
+    registry: workspace::ScopeRegistry,
+    /// Address the listener was configured with, used by the Host/Origin guard.
+    bind: SocketAddr,
+    /// Caps how many real Node processes one server may run concurrently.
+    node_slots: Arc<tokio::sync::Semaphore>,
+}
+
+impl AppState {
+    /// Builds state for a workspace, keeping the configured listener address for host checks.
+    pub(crate) fn new(config: workspace::WorkspaceConfig) -> Self {
+        let bind = config.bind;
+        Self {
+            registry: workspace::ScopeRegistry::new(config),
+            bind,
+            node_slots: Arc::new(tokio::sync::Semaphore::new(workspace::MAX_NODE_RUNS)),
+        }
+    }
 }
 
 /// Builds the complete route table with state attached, so tests need no socket.
 pub fn router(config: ServerConfig) -> Router {
-    let state = Arc::new(AppState {
-        manifest_path: config.manifest_path,
-        invoke_mode: config.invoke_mode,
-    });
+    let workspace =
+        workspace::WorkspaceConfig::single(config.manifest_path, config.bind, config.invoke_mode);
+    workspace::workspace_router(workspace)
+}
 
+/// Builds the shared route table for a workspace-backed state.
+pub(crate) fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(index))
         .route("/app.js", get(app_js))
         .route("/app.css", get(app_css))
         .route("/api/health", get(health))
+        .route("/api/scopes", get(scopes))
+        .route("/api/scopes/{id}/fn-graph.json", get(scoped_fn_graph))
+        .route("/api/scopes/{id}/invoke", post(scoped_invoke))
         .route("/api/fn-graph.json", get(fn_graph))
         .route("/api/invoke", post(invoke))
+        .layer(DefaultBodyLimit::max(workspace::MAX_INVOKE_BODY_BYTES))
+        .layer(middleware::from_fn_with_state(
+            Arc::clone(&state),
+            security_guard,
+        ))
         .with_state(state)
 }
 
-/// Serves the single-page application shell.
-async fn index() -> Html<&'static str> {
-    Html(INDEX_HTML)
+/// Rejects foreign `Host`/`Origin` values so a browser cannot be rebound onto this server.
+async fn security_guard(
+    State(state): State<Arc<AppState>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if let Some(host) = request.headers().get(header::HOST) {
+        let host = host.to_str().unwrap_or("");
+        if !authority_allowed(host, state.bind) {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "host must name the local machine".to_owned(),
+            );
+        }
+    }
+
+    if let Some(origin) = request.headers().get(header::ORIGIN) {
+        let origin = origin.to_str().unwrap_or("");
+        if !origin_allowed(origin, state.bind) {
+            return error_response(
+                StatusCode::FORBIDDEN,
+                "cross-origin requests are not allowed".to_owned(),
+            );
+        }
+    }
+
+    if let Some(site) = request.headers().get("sec-fetch-site") {
+        if site.to_str().unwrap_or("") == "cross-site" {
+            return error_response(
+                StatusCode::FORBIDDEN,
+                "cross-site requests are not allowed".to_owned(),
+            );
+        }
+    }
+
+    next.run(request).await
+}
+
+/// Reports whether a `Host`/authority names this machine.
+fn authority_allowed(authority: &str, bind: SocketAddr) -> bool {
+    let host = authority_host(authority);
+    if is_loopback_host(host) {
+        return true;
+    }
+    match host.parse::<IpAddr>() {
+        Ok(ip) => bind.ip().is_unspecified() || ip == bind.ip(),
+        Err(_) => false,
+    }
+}
+
+/// Extracts the host part of `host:port` or `[ipv6]:port`.
+fn authority_host(authority: &str) -> &str {
+    let authority = authority.trim();
+    if let Some(rest) = authority.strip_prefix('[') {
+        return rest.split(']').next().unwrap_or(authority);
+    }
+    match authority.rsplit_once(':') {
+        Some((host, port))
+            if !port.is_empty() && port.bytes().all(|byte| byte.is_ascii_digit()) =>
+        {
+            host
+        }
+        _ => authority,
+    }
+}
+
+/// Reports whether a host string is a loopback name or address.
+fn is_loopback_host(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost")
+        || host
+            .parse::<IpAddr>()
+            .map(|ip| ip.is_loopback())
+            .unwrap_or(false)
+}
+
+/// Reports whether an `Origin` header points back at this local server.
+fn origin_allowed(origin: &str, bind: SocketAddr) -> bool {
+    let rest = origin
+        .trim()
+        .strip_prefix("http://")
+        .or_else(|| origin.trim().strip_prefix("https://"));
+    match rest {
+        Some(rest) => {
+            let authority = rest.split('/').next().unwrap_or("");
+            authority_allowed(authority, bind)
+        }
+        None => false,
+    }
+}
+
+/// Serves the single-page application shell with a strict, local-only policy.
+async fn index() -> Response {
+    asset(INDEX_HTML, "text/html")
 }
 
 /// Serves the embedded JavaScript bundle as JavaScript.
@@ -86,9 +216,17 @@ async fn app_css() -> Response {
     asset(APP_CSS, "text/css")
 }
 
-/// Wraps a static asset with its narrow, explicit content type.
+/// Wraps a static asset with its narrow content type and the embedded-asset CSP.
 fn asset(body: &'static str, content_type: &'static str) -> Response {
-    (StatusCode::OK, [("content-type", content_type)], body).into_response()
+    (
+        StatusCode::OK,
+        [
+            ("content-type", content_type),
+            ("content-security-policy", CONTENT_SECURITY_POLICY),
+        ],
+        body,
+    )
+        .into_response()
 }
 
 /// Reports liveness for the CLI and for external health checks.
@@ -96,31 +234,52 @@ async fn health() -> Json<Value> {
     Json(json!({ "ok": true, "tool": "fnscope" }))
 }
 
-/// Re-reads the manifest on every request so watcher updates appear immediately.
-async fn fn_graph(State(state): State<Arc<AppState>>) -> Response {
-    let raw = match tokio::fs::read_to_string(&state.manifest_path).await {
-        Ok(raw) => raw,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            return error_response(
-                StatusCode::NOT_FOUND,
-                "manifest not found — run fnscope scan first".to_owned(),
-            );
-        }
-        Err(err) => {
-            return error_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("cannot read manifest: {err}"),
-            );
-        }
-    };
+/// Lists every configured scope with its availability and relative root.
+async fn scopes(State(state): State<Arc<AppState>>) -> Json<workspace::ScopeList> {
+    let mut descriptors = Vec::with_capacity(state.registry.scopes().len());
+    for index in 0..state.registry.scopes().len() {
+        let scope = &state.registry.scopes()[index];
+        descriptors.push(state.registry.descriptor(scope).await);
+    }
+    Json(workspace::ScopeList {
+        scopes: descriptors,
+        default_scope: state.registry.default_scope().to_owned(),
+    })
+}
 
-    // Deserializing into FnGraph validates the schema before the text is handed to the UI.
-    match serde_json::from_str::<FnGraph>(&raw) {
-        Ok(_) => (StatusCode::OK, [("content-type", "application/json")], raw).into_response(),
-        Err(err) => error_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("invalid manifest JSON: {err}"),
-        ),
+/// Compatibility route: serves the workspace's default scope graph.
+async fn fn_graph(State(state): State<Arc<AppState>>) -> Response {
+    let default_scope = state.registry.default_scope().to_owned();
+    graph_for_scope(&state, &default_scope).await
+}
+
+/// Additive route: serves one whitelisted scope's validated graph.
+async fn scoped_fn_graph(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<String>,
+) -> Response {
+    if !is_valid_scope_id(&id) {
+        return unknown_scope(&id);
+    }
+    graph_for_scope(&state, &id).await
+}
+
+/// Loads and serializes a graph, validating it before any text reaches the UI (D-8).
+async fn graph_for_scope(state: &AppState, scope_id: &str) -> Response {
+    let Some(scope) = state.registry.scope(scope_id) else {
+        return unknown_scope(scope_id);
+    };
+    match state.registry.load(scope).await {
+        Ok(graph) => match serde_json::to_string(graph.as_ref()) {
+            Ok(body) => {
+                (StatusCode::OK, [("content-type", "application/json")], body).into_response()
+            }
+            Err(error) => error_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("cannot encode manifest: {error}"),
+            ),
+        },
+        Err(error) => error_response(error.status(), error.message()),
     }
 }
 
@@ -129,50 +288,82 @@ fn error_response(status: StatusCode, message: String) -> Response {
     (status, Json(json!({ "error": message }))).into_response()
 }
 
-/// Loads the manifest for an invocation, reporting failures as readable strings.
-async fn load_graph(path: &Path) -> Result<FnGraph, String> {
-    let raw = tokio::fs::read_to_string(path)
-        .await
-        .map_err(|err| format!("cannot read manifest: {err}"))?;
-    serde_json::from_str::<FnGraph>(&raw).map_err(|err| format!("invalid manifest JSON: {err}"))
+/// 404 for a scope id that is not in the registry; the id is never resolved as a path.
+fn unknown_scope(id: &str) -> Response {
+    error_response(StatusCode::NOT_FOUND, format!("unknown scope: {id}"))
 }
 
-/// Dispatches an invocation to the simulator or to the Node runner.
+/// Compatibility route: invokes against the workspace's default scope.
 async fn invoke(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InvokeRequest>,
-) -> Json<InvokeResponse> {
+) -> Response {
+    let default_scope = state.registry.default_scope().to_owned();
+    invoke_in_scope(&state, &default_scope, request).await
+}
+
+/// Additive route: invokes only inside one whitelisted scope.
+async fn scoped_invoke(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<String>,
+    Json(request): Json<InvokeRequest>,
+) -> Response {
+    if !is_valid_scope_id(&id) {
+        return unknown_scope(&id);
+    }
+    invoke_in_scope(&state, &id, request).await
+}
+
+/// Dispatches an invocation to the simulator or to a bounded Node process.
+async fn invoke_in_scope(state: &AppState, scope_id: &str, request: InvokeRequest) -> Response {
     let started = Instant::now();
 
-    let graph = match load_graph(&state.manifest_path).await {
+    let Some(scope) = state.registry.scope(scope_id) else {
+        return unknown_scope(scope_id);
+    };
+    let graph = match state.registry.load(scope).await {
         Ok(graph) => graph,
-        Err(reason) => {
+        Err(error) => {
             return Json(InvokeResponse {
                 ok: false,
-                error: Some(reason),
+                error: Some(error.message()),
                 duration_ms: started.elapsed().as_secs_f64() * 1000.0,
                 ..Default::default()
-            });
+            })
+            .into_response();
         }
     };
 
     let simulated = simulate(&graph, &request);
-    let mut response = match state.invoke_mode {
+    let mut response = match state.registry.invoke_mode(scope) {
         InvokeMode::Simulate => simulated.clone(),
         InvokeMode::Node => {
-            let node_graph = graph.clone();
+            // The permit is moved into the blocking task so the slot is released only
+            // after the Node process tree has been waited for or timed out.
+            let permit = match Arc::clone(&state.node_slots).try_acquire_owned() {
+                Ok(permit) => permit,
+                Err(_) => {
+                    return Json(fallback(
+                        simulated,
+                        "too many concurrent Node invocations; try again",
+                    ))
+                    .into_response();
+                }
+            };
+            let node_graph = Arc::clone(&graph);
             let node_request = request.clone();
-            let scratch_base = state
+            let scratch_base = scope
                 .manifest_path
                 .parent()
                 .filter(|parent| !parent.as_os_str().is_empty())
-                .map(|parent| parent.to_path_buf())
+                .map(Path::to_path_buf)
                 .unwrap_or_else(|| {
                     std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir())
                 });
-            let scratch_base_for_task = scratch_base.clone();
+            let scan_root = scope.scan_root.clone();
             match tokio::task::spawn_blocking(move || {
-                run_node(&node_graph, &node_request, &scratch_base_for_task)
+                let _permit = permit;
+                run_node(&node_graph, &node_request, &scratch_base, &scan_root)
             })
             .await
             {
@@ -191,7 +382,7 @@ async fn invoke(
     }
 
     response.duration_ms = started.elapsed().as_secs_f64() * 1000.0;
-    Json(response)
+    Json(response).into_response()
 }
 
 /// Builds a deterministic trace from the manifest's steps without executing code.
@@ -328,11 +519,52 @@ try {
 }
 "#;
 
+/// Resolves a function's source file and refuses anything outside the scope root.
+///
+/// Canonicalization follows symlinks, so a manifest cannot point Node at a file outside the
+/// project even if it contains absolute paths, `..` segments or links.
+fn resolve_module_path(
+    graph: &FnGraph,
+    function: &FnRecord,
+    scan_root: &Path,
+) -> Result<PathBuf, String> {
+    let file_path = Path::new(&function.file_path);
+    if file_path.is_absolute() {
+        return Err("module path must be relative to the scope root".to_owned());
+    }
+
+    let root = if scan_root.as_os_str().is_empty() {
+        let recorded = PathBuf::from(&graph.root_dir);
+        if recorded.is_absolute() {
+            recorded
+        } else {
+            std::env::current_dir()
+                .map_err(|err| format!("cannot read current directory: {err}"))?
+                .join(recorded)
+        }
+    } else {
+        scan_root.to_path_buf()
+    };
+    let root =
+        std::fs::canonicalize(&root).map_err(|err| format!("cannot resolve scope root: {err}"))?;
+    let candidate = root.join(file_path);
+    let module =
+        std::fs::canonicalize(&candidate).map_err(|err| format!("cannot resolve module: {err}"))?;
+    if !module.starts_with(&root) {
+        return Err("module path escapes the scope root".to_owned());
+    }
+    if !module.is_file() {
+        return Err("module path is not a file".to_owned());
+    }
+    Ok(module)
+}
+
 /// Executes the target export in a Node child process and parses its JSON result.
 fn run_node(
     graph: &FnGraph,
     request: &InvokeRequest,
     scratch_base: &Path,
+    scan_root: &Path,
 ) -> Result<InvokeResponse, String> {
     let function = graph
         .functions
@@ -340,15 +572,7 @@ fn run_node(
         .find(|function| function.id == request.fn_id)
         .ok_or_else(|| format!("unknown fnId: {}", request.fn_id))?;
 
-    let root = PathBuf::from(&graph.root_dir);
-    let absolute_root = if root.is_absolute() {
-        root
-    } else {
-        std::env::current_dir()
-            .map_err(|err| format!("cannot read current directory: {err}"))?
-            .join(root)
-    };
-    let module_path = absolute_root.join(&function.file_path);
+    let module_path = resolve_module_path(graph, function, scan_root)?;
 
     let temp = TempDirGuard::create(scratch_base)
         .map_err(|err| format!("cannot create temp dir: {err}"))?;
