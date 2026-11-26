@@ -430,6 +430,14 @@ Failure class: gate bypass + evidence overstatement.
 Pivot: strengthen the gate rather than accept the reconstruction; no merge until re-review PASS.
 Next: re-run culture + sims, re-review, commit worktree branch, push, PR, merge via PR (waiver recorded), close worktree.
 
+### 48 — 2026-11-26 (delivery of process correction)
+Action: Merged the reconstruction branch through PR #1 and verified the final state.
+Verification: worktree branch pushed (transient HTTP 408 on first push, succeeded on retry); `gh pr create` -> `https://github.com/spanexx/fnscope-/pull/1`; J55 re-review -> `Verdict (re-review): PASS` with F1-F5 all RESOLVED. `gh pr merge 1 --squash` -> `PR_MERGE_STATUS=0`; local `git merge origin/main` then `git push origin main` -> `6f53d80..89dc61c`. Final `bash scripts/check-culture.sh` -> `CULTURE_OK` with 7 `DECISION_RECORD` PASS lines and `ORIGIN_GATE` PASS naming `crates/ ui/src/`. `cargo test --workspace` -> `FINAL_TEST_STATUS=0`. Local HEAD equals remote HEAD `89dc61cedf126e21c3f281428aec55980b83b181`. All worktrees removed/pruned.
+Verdict: pass — per-feature origin records now exist, are decision-annotated, independently reviewed, merged, and mechanically enforced.
+Failure class: none in this iteration.
+Pivot: none.
+Next: none unless new work arrives; all new work must use the goal-skill delegated lane with contemporaneous decision records and the origin gate.
+
 ### Review notes (orchestrator)
 - J01 (model) reviewed: exact camelCase serde names, aggregated `validate`, 10 tests. One accepted deviation: uppercase hex accepted in `astHash` (still 64 hex chars). No conflict.
 - J09 (fixture) reviewed: 8 core functions, explicit `.ts` imports, `dryRun` path for safe invoke.
