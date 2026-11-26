@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "defaultScope": "alpha",
+  "scopes": [
+    {
+      "id": "alpha",
+      "label": "Alpha",
+      "note": "Alpha fixture scope; shares the shared() name with beta on purpose.",
+      "path": "alpha",
+      "include": ["**/*.ts"],
+      "invoke": "simulate"
+    },
+    {
+      "id": "beta",
+      "label": "Beta",
+      "note": "Beta fixture scope; its shared() behaves differently from alpha's.",
+      "path": "beta",
+      "include": ["**/*.ts"],
+      "invoke": "simulate"
+    }
+  ]
+}
