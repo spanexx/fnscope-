@@ -221,10 +221,23 @@ is serial integration.
 ## Dependency Analysis (opensrc)
 
 **Before Phase 3:** `@fontsource/ibm-plex-sans`, `@fontsource/ibm-plex-mono`,
-`@fontsource/ibm-plex-serif` (OFL). Record license, maintenance, why bundled fonts are preferred
-over a system stack or a CDN, alternatives, and the import pattern. No other new runtime
-dependency is planned. If a test framework is added, it needs its own opensrc entry and IMPL
-update.
+`@fontsource/ibm-plex-serif`.
+
+- **Name + version:** `@fontsource/ibm-plex-{sans,mono,serif}@5.3.0`.
+- **License:** OFL-1.1.
+- **Maintenance:** active; npm registry `time.modified` is 2026-07-19 for all three.
+- **Why:** self-hosted IBM Plex woff2 files keep the validated typography and make the app
+  offline/self-contained. The CDN version is rejected (external request, privacy, flake).
+- **Alternatives considered:** system sans/mono stack (loses the approved identity), Google Fonts
+  CDN (rejected for offline/privacy), copying Windows fonts (not portable/licensed).
+- **Call pattern:** import the family CSS from `ui/src/input.css`/`ui/src/main.tsx`; esbuild and
+  the Tailwind build bundle the woff2 assets into the single embedded asset set.
+- **opensrc note:** the `opensrc` CLI is not installed in this environment; npm registry metadata
+  was checked instead. The packages are small OFL assets with no runtime code. If the source is
+  needed later, run `opensrc path @fontsource/ibm-plex-sans --cwd ui` after installing the CLI.
+
+No other new runtime dependency is planned. If a test framework is added, it needs its own
+opensrc entry and IMPL update.
 
 ## Rollout
 
