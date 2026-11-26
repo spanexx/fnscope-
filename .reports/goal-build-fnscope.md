@@ -400,6 +400,36 @@ Failure class: none.
 Pivot: none.
 Next: none unless the user asks for further work.
 
+### 44 — 2026-11-26 (process correction)
+Action: User corrected the process — no human gates, but every decision must be documented at decision time with why and source, aligned with the goal contract and prior decisions; update feature-pipeline and surgical-change to encode this. Loaded both skills, read `goal/decisions.md` (which already had Case B + authority ethics), and dispatched J46 to add a "Goal-skill delegated lane" to `feature-pipeline/SKILL.md`, `surgical-change/SKILL.md` and `goal/decisions.md`. Created isolated worktree `docs/fnscope-packs-reconstruction` via `agent-worktree docs ...` and began J47-J49 pack reconstruction agents.
+Verification (J46, reviewed): feature-pipeline lines 34-67, surgical-change lines 33-69, goal/decisions.md lines 40-58/88/102-110. Rules added: decide+record at decision time with `[agent decision]`, WHY, SOURCE; alignment with Goal Contract and prior locked decisions; human gates waived only by explicit recorded waiver; isolation gate unchanged.
+Verdict: in progress — skill correction accepted; pack reconstruction running.
+Failure class: process — the original build skipped per-feature origin docs (user's correction).
+Pivot: all future work uses goal-skill delegated lane with contemporaneous decision records; past packs are RECONSTRUCTED with honest labels and ledger citations.
+Next: integrate pack agents, review each, PR/merge in the worktree, then enforce origin gate in culture checker.
+
+### 45 — 2026-11-26 (delegated documentation reconstruction)
+Action: Per user correction, created isolated worktree branch `docs/fnscope-packs-reconstruction` with `agent-worktree docs ...`; dispatched J47-J53 to reconstruct seven per-feature origin packs (base, Rust, registry, Python/Go, Java/C/C++, final five, culture/reviewers) with `[agent decision]` entries containing why/source/alignment and explicit RECONSTRUCTED labels; dispatched J54 to add ORIGIN_GATE and DECISION_RECORD checks to `scripts/check-culture.sh` plus AGENTS.md/ethics rules.
+Verdict: in progress — skill correction J46 accepted and reviewed.
+Failure class: process gap (past code lacked per-feature origin docs); being remediated honestly, not backdated.
+Pivot: no more main-thread code; all process work in worktree; no human gates per explicit user waiver; every decision documented at decision time.
+Next: integrate/review packs, run culture gate with new checks, push branch, open PR, merge via PR (waiver recorded), close worktree.
+
+### 46 — 2026-11-26 (service outage and recovery)
+Action: Eight pack/gate subagents failed with `getaddrinfo ENOTFOUND opencode.ai` (subagent service DNS outage). J47 (base pack) had already written its files before the error; J48-J54 wrote nothing. Probed subagent availability with a read-only explore job — service recovered.
+Verdict: partial failure, recovered.
+Failure class: infrastructure (subagent service DNS) — not a work defect.
+Pivot: reuse J47's completed base pack; re-dispatch J48-J54 as fresh agents. J47 correctly noted the exact "no human approval" sentence was not in committed evidence — recording it here verbatim from the user's message: "It's okay, you don't need a human approval. You can do it, but I just want you to document your decisions and why you made the decisions as you go."
+Next: integrate packs, gate, PR/merge in worktree.
+
+### 47 — 2026-11-26 (pack review)
+Action: Ran the new culture gate and all seven pack simulations in the worktree; both green (`CULTURE_OK`, `ALL_PACK_SIMS_OK`). Dispatched J55 independent reviewer; it returned FAIL with 5 findings. Routed F1 to J47, F2/F3/F5 to J54, F4 to J53.
+Verification: reviewer findings with exact path:line: base `GRILL.txt:1` missing required headers; `check-culture.sh:373` glob missed legacy GRILL; `:295-299` ORIGIN_GATE scanned only crates/; `IMPL-fnscope-culture-reviewers.md:122-126` claimed uncommitted probe output; `.txt` excluded from CRLF/path checks (`:75`).
+Verdict: fail (review), fixes in progress.
+Failure class: gate bypass + evidence overstatement.
+Pivot: strengthen the gate rather than accept the reconstruction; no merge until re-review PASS.
+Next: re-run culture + sims, re-review, commit worktree branch, push, PR, merge via PR (waiver recorded), close worktree.
+
 ### Review notes (orchestrator)
 - J01 (model) reviewed: exact camelCase serde names, aggregated `validate`, 10 tests. One accepted deviation: uppercase hex accepted in `astHash` (still 64 hex chars). No conflict.
 - J09 (fixture) reviewed: 8 core functions, explicit `.ts` imports, `dryRun` path for safe invoke.
