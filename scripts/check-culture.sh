@@ -52,6 +52,12 @@ PATH_EXCEPTIONS=(
 PATH_EXCEPTION_DIRS=(
   '.reports/reviews/'
 )
+# Glob exceptions: GRILL files quote user prompts and ledger output verbatim,
+# so an absolute path inside one is quoted evidence, not a configuration.
+# This waives ABSOLUTE_PATH only; CRLF enforcement still covers these files.
+PATH_EXCEPTION_GLOBS=(
+  'docs/features/*/GRILL*.txt'
+)
 
 # The single CRLF detector shared by the gate and its self-test. -U stops grep
 # stripping CR before the match; iteration 17's green came from $"\r" instead.
@@ -72,11 +78,11 @@ list_repo_files() {
 TEXT_FILES=()
 while IFS= read -r -d '' f; do
   case "$f" in
-    *.rs|*.md|*.sh|*.toml|*.mjs|*.json|*.tsx|*.ts) TEXT_FILES+=("${f#./}") ;;
+    *.rs|*.md|*.txt|*.sh|*.toml|*.mjs|*.json|*.tsx|*.ts) TEXT_FILES+=("${f#./}") ;;
   esac
 done < <(
   { git ls-files -z; git ls-files --others --exclude-standard -z; } \
-    | grep -zE '\.(rs|md|sh|toml|mjs|json|tsx|ts)$' \
+    | grep -zE '\.(rs|md|txt|sh|toml|mjs|json|tsx|ts)$' \
     | grep -zvE '(^|/)(node_modules|target|\.git)/' \
     || true
 )
@@ -95,7 +101,7 @@ check_crlf() {
 
 check_absolute_paths() {
   local -a offenders=()
-  local f exception dir skip bad_lines
+  local f exception dir pattern skip bad_lines
   for f in "${TEXT_FILES[@]}"; do
     skip=0
     for exception in "${PATH_EXCEPTIONS[@]}"; do
@@ -104,6 +110,11 @@ check_absolute_paths() {
     if (( ! skip )); then
       for dir in "${PATH_EXCEPTION_DIRS[@]}"; do
         if [[ "$f" == "$dir"* ]]; then skip=1; break; fi
+      done
+    fi
+    if (( ! skip )); then
+      for pattern in "${PATH_EXCEPTION_GLOBS[@]}"; do
+        if [[ "$f" == $pattern ]]; then skip=1; break; fi
       done
     fi
     (( skip )) && continue
@@ -254,6 +265,142 @@ check_scratch_files() {
   fi
 }
 
+# Feature code roots scanned by ORIGIN_GATE. scripts/, docs/ and tests/ are
+# deliberately absent: they carry no product feature code.
+ORIGIN_CODE_PATHS=(crates/ ui/src/)
+
+# ORIGIN_GATE allow-list: code-path=pack-slug. The six base crates and ui/src
+# shipped under delegated jobs J01..J11; their pack predates the <slug> file
+# naming convention, so they map to fnscope-base. An unlisted crate must have
+# a pack named after its own directory.
+ORIGIN_PATH_PACKS=(
+  crates/fnscope-cli=fnscope-base
+  crates/fnscope-core=fnscope-base
+  crates/fnscope-enrich=fnscope-base
+  crates/fnscope-model=fnscope-base
+  crates/fnscope-parser=fnscope-base
+  crates/fnscope-server=fnscope-base
+  ui/src=fnscope-base
+)
+
+# Resolve a changed code path to its pack slug from the documented mapping.
+origin_pack_slug() {
+  local path="$1" entry
+  for entry in "${ORIGIN_PATH_PACKS[@]}"; do
+    if [[ "$entry" == "$path="* ]]; then
+      printf '%s\n' "${entry#*=}"
+      return 0
+    fi
+  done
+  printf '%s\n' "${path##*/}"
+}
+
+# Short display name: bare crate name for crates/, full key for ui/src.
+origin_display_path() {
+  printf '%s\n' "${1#crates/}"
+}
+
+# Code paths touched by committed, staged, unstaged or untracked changes. Each
+# changed file collapses to its owning feature path, so one path yields one
+# origin check. No other tree (scripts/, docs/, tests/) is feature code.
+changed_code_paths() {
+  {
+    git diff --name-only main...HEAD -- "${ORIGIN_CODE_PATHS[@]}"
+    git diff --cached --name-only -- "${ORIGIN_CODE_PATHS[@]}"
+    git diff --name-only -- "${ORIGIN_CODE_PATHS[@]}"
+    git ls-files --others --exclude-standard -- "${ORIGIN_CODE_PATHS[@]}"
+  } | awk -F/ '
+    $1 == "crates" && NF >= 3 { print "crates/" $2; next }
+    $1 == "ui" && $2 == "src" { print "ui/src" }
+  ' | sort -u
+}
+
+# A pack is complete only when all three origin documents exist at their real
+# paths: <kind>.<ext> (historical base pack) or <kind>-<slug>.<ext>. There is no
+# existence-only waiver: DECISION_RECORD checks the content of every GRILL.
+pack_has_origin_docs() {
+  local slug="$1" kind ext
+  local dir="docs/features/$slug"
+  for kind in GRILL PRD-TRD IMPL; do
+    case "$kind" in
+      GRILL) ext=txt ;;
+      *) ext=md ;;
+    esac
+    if [[ -f "$dir/$kind.$ext" || -f "$dir/$kind-$slug.$ext" ]]; then continue; fi
+    return 1
+  done
+  return 0
+}
+
+check_origin_gate() {
+  local -a paths=()
+  local path slug display
+  if ! git rev-parse --verify -q main >/dev/null; then
+    record_fail 'ORIGIN_GATE: cannot resolve main ref for origin comparison'
+    return
+  fi
+  mapfile -t paths < <(changed_code_paths)
+  # Always name the scanned roots and the hit count, including the zero case,
+  # so a vacuous PASS cannot masquerade as a real scan.
+  record_pass "ORIGIN_GATE: scanned ${ORIGIN_CODE_PATHS[*]}; ${#paths[@]} changed path(s) relative to main"
+  for path in "${paths[@]}"; do
+    slug="$(origin_pack_slug "$path")"
+    display="$(origin_display_path "$path")"
+    if pack_has_origin_docs "$slug"; then
+      record_pass "ORIGIN_GATE: $display -> docs/features/$slug has GRILL/PRD-TRD/IMPL"
+    else
+      record_fail "ORIGIN_GATE: $display has no feature pack docs/features/$slug (need GRILL-$slug.txt, PRD-TRD-$slug.md, IMPL-$slug.md)"
+    fi
+  done
+}
+
+# WHY/SOURCE may be bare headings (base pack) or labelled "WHY:" lines.
+has_reason_heading() {
+  local file="$1" label="$2"
+  grep -qE "^[[:space:]]*(${label})[[:space:]]*:?([[:space:]]|$)" "$file"
+}
+
+# A locked GRILL file must carry Status: Locked plus either an agent decision
+# backed by WHY and SOURCE, or the standard Q/A/Why/Source form.
+decision_record_valid() {
+  local file="$1"
+  grep -qF 'Status: Locked' "$file" || return 1
+  if grep -qF '[agent decision]' "$file" \
+    && has_reason_heading "$file" 'WHY|Why' \
+    && has_reason_heading "$file" 'SOURCE|Source'; then
+    return 0
+  fi
+  if grep -qE '^[[:space:]]*(Q|Question):' "$file" \
+    && grep -qE '^[[:space:]]*(A|Answer):' "$file" \
+    && grep -qE '^[[:space:]]*(WHY|Why)[[:space:]]*:' "$file" \
+    && grep -qE '^[[:space:]]*(SOURCE|Source)[[:space:]]*:' "$file"; then
+    return 0
+  fi
+  return 1
+}
+
+check_decision_record() {
+  local -a files=()
+  local f
+  if [[ ! -d docs/features ]]; then
+    record_fail 'DECISION_RECORD: docs/features is missing'
+    return
+  fi
+  # GRILL*.txt matches both the legacy base GRILL.txt and GRILL-<slug>.txt.
+  mapfile -t files < <(find docs/features -mindepth 2 -maxdepth 2 -type f -name 'GRILL*.txt' | sort)
+  if (( ${#files[@]} == 0 )); then
+    record_pass 'DECISION_RECORD: no GRILL*.txt packs to check'
+    return
+  fi
+  for f in "${files[@]}"; do
+    if decision_record_valid "$f"; then
+      record_pass "DECISION_RECORD: $f has Status: Locked and a backed decision"
+    else
+      record_fail "DECISION_RECORD: $f needs Status: Locked and [agent decision] with WHY/SOURCE or Q/A/Why/Source"
+    fi
+  done
+}
+
 # Prove the byte-level detector against a known positive and negative before
 # anyone trusts CULTURE_OK. Uses the same detect_cr_files as the gate above.
 self_test() {
@@ -305,6 +452,8 @@ check_drift
 check_doc_headings
 check_contract_symbols
 check_scratch_files
+check_origin_gate
+check_decision_record
 
 if (( ${#FAILURES[@]} > 0 )); then
   reason="$(printf '%s; ' "${FAILURES[@]}")"

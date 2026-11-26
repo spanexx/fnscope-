@@ -1,0 +1,343 @@
+fnscope-final-languages — GRILL (requirements lock, reconstructed)
+==================================================================
+
+RECONSTRUCTED 2026-11-26. This file was written after J35-J45 shipped (code
+commit `d6b02cf`) and after the user corrected the process in iteration 44. It
+is NOT a pre-impl artifact and must not be read as one. Every claim below is
+tied to a ledger iteration, a review finding, a drift entry, or a file:line in
+this repository. No quote is invented and no date is backdated.
+
+Status: Locked
+Decisions by: agent (delegated by user, 2026-11-26)
+Human gates waived by user, 2026-11-26. Verbatim user sentence:
+
+  "It's okay, you don't need a human approval. You can do it, but I just want you to document your decisions and why you made the decisions as you go."
+
+Source of that sentence: ledger iteration 46,
+`.reports/goal-build-fnscope.md:422` — "J47 correctly noted the exact 'no
+human approval' sentence was not in committed evidence — recording it here
+verbatim from the user's message". The earliest authority in the same ledger
+is: - "Authority: delegated (user: 'ask me no questions make all decisions
+yourself')." (`.reports/goal-build-fnscope.md:12`).
+
+AUTHORITY RULE (read before any entry)
+--------------------------------------
+No question was asked of the user for this pack and no answer below was
+confirmed with the user in a gate. Every LOCKED ANSWER is an [agent decision]
+made under the delegated authority quoted above, and each carries decision,
+WHY, SOURCE and ALIGNMENT as the user required. Words in quotation marks are
+evidence quotes from the ledger, a review, the locked spec or a repo file —
+never invented user receipts. Where evidence does not support a stronger
+claim, the limit is stated under EVIDENCE LIMITS at the end.
+
+
+DECISION 1 — Five adapters ship as one reviewed batch
+------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Kotlin, C#, Ruby, PHP and Swift are five separate adapter worktrees (J35,
+  J36, J37, J38, J39), one strict independent review (J40), one registration
+  job for the shared files (J41), one Kotlin grammar port (J42), one manifest
+  rename (J43), and one docs closure (J44-J45). They land as commit `d6b02cf`.
+
+WHY
+  Five agents editing `adapter.rs`, `lib.rs`, the manifests or core globs at
+  the same time would overwrite one another. Disjoint file sets keep each
+  adapter reviewable on its own; one registration owner keeps the shared
+  edits atomic; one logical change keeps the commit readable.
+
+SOURCE
+  Ledger iteration 32 (`.reports/goal-build-fnscope.md:340-346`) — "language
+  adapters are always built in separate worktrees; one registration job owns
+  the shared registry files so parallel jobs never collide."
+  Ledger iteration 35 (`:333-339`) — all five reported complete, J40
+  dispatched for one strict review.
+  Ledger iteration 42 (`:387-394`) — "committed the final five adapters" and
+  `d6b02cf feat: Kotlin, C#, Ruby, PHP and Swift language adapters`.
+  Review `.reports/reviews/J35-J39.md:1-9` — one reviewer, five worktrees,
+  30 owned files read in full.
+  `docs/STATUS.md:369` — `d6b02cf`, 39 files, +11404 / -1.
+
+ALIGNMENT
+  AGENTS.md "Parallel work rule" and "One logical change = one commit";
+  L1 bounded write windows (`docs/ethics/lessons.md:29-49`). Iteration 16's
+  acceptance evidence (1) and (3): green tests and one mixed manifest.
+
+
+DECISION 2 — Kotlin grammar: `tree-sitter-kotlin-ng` replaces `tree-sitter-kotlin`
+--------------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  The Kotlin adapter uses `tree-sitter-kotlin-ng = "1.1"` in both manifests
+  and `tree_sitter_kotlin_ng::LANGUAGE.into()` in `src/kotlin/mod.rs:45`.
+  `tree-sitter-kotlin 0.3.8` is deliberately absent. Grammar node kinds were
+  remapped for the -ng grammar and all 14 Kotlin tests were preserved.
+  This gap is D-6 in `docs/drift.md`.
+
+WHY
+  The old grammar pins `tree-sitter >= 0.21, < 0.23`, and tree-sitter declares
+  `links = "tree-sitter"`, so Cargo allows only one such package; 0.21 and the
+  workspace's 0.25 cannot coexist in one binary. The -ng crate depends on
+  `tree-sitter-language 0.1`, exports `LANGUAGE`, and lists tree-sitter 0.24
+  as dev-only, so it does not link a second native runtime.
+
+SOURCE
+  Drift D-6 (`docs/drift.md:57-61`) — opened against the "native `links`
+  conflict", closed with the -ng replacement and a green gate.
+  Ledger iteration 37 (`.reports/goal-build-fnscope.md:347-354`) records:
+  Diagnosed a native `links = "tree-sitter"` conflict from
+  tree-sitter-kotlin 0.3.8 (pins 0.21/0.22) coexisting with workspace
+  tree-sitter 0.25. Found `tree-sitter-kotlin-ng 1.1.0` (uses
+  tree-sitter-language 0.1, exports `LANGUAGE`) as the compatible replacement.
+  Contract `docs/contract/adapters/kotlin.md:30-52` — verified crate source
+  facts and the removal of all unsafe code.
+  Review `.reports/reviews/J35-J39.md:162` — the registration note that the
+  old grammar "pins tree-sitter >=0.21,<0.23" and would link a second runtime.
+  Shipped code `crates/fnscope-parser/src/kotlin/mod.rs:43-45`; manifests
+  `Cargo.toml:37` and `crates/fnscope-parser/Cargo.toml`.
+
+ALIGNMENT
+  Iteration 16's zero-core-change plugin invariant: a grammar swap stays
+  inside one adapter plus the dependency lines. D-6 is Resolved, not deleted
+  (L6, `docs/ethics/lessons.md:137-147`); the gate in iteration 42 is green.
+
+
+DECISION 3 — The raw-pointer bridge was judged sound but rejected
+-----------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  The `mem::transmute` bridge in the original Kotlin adapter is deleted. The
+  soundness analysis stays in the record as analysis only; it is not a reason
+  to merge the old grammar. No `unsafe` bridge code remains in `src/kotlin/`.
+
+WHY
+  Soundness and buildability are different questions. The review proved the
+  transmute was bit-preserving (`repr(transparent)` thin pointers, ABI 14 in
+  the workspace range 13..=15, no double-drop), but that says nothing about
+  Cargo's native `links` uniqueness rule. Removing the unsafe code is simpler
+  than maintaining a bridge around a dependency that cannot be linked.
+
+SOURCE
+  Review `.reports/reviews/J35-J39.md:48-69` — heading "Judgement on the
+  Kotlin bridge (`kotlin/mod.rs:44-47`) — SOUND, not UB", with the repr, ABI
+  and ownership reasoning; `:151` — "No Kotlin-bridge finding: the transmute
+  is sound (see judgement above)."
+  Ledger iteration 36 (`.reports/goal-build-fnscope.md:340-346`) — "Kotlin's
+  raw-pointer bridge was explicitly judged SOUND (repr(transparent) thin
+  pointers, ABI 14 supported, no double-drop)."
+  Drift D-6 closure (`docs/drift.md:61`) — "The pointer-bridge analysis
+  remains correct as analysis; the native-link conflict is the actual
+  blocker" and "removing all unsafe bridge code".
+
+ALIGNMENT
+  D-6 closure is the machine-readable verdict (L6). Verification honesty
+  (`docs/ethics/lessons.md:202-252`): a sound analysis is not a green gate,
+  and a green format marker is not a compile result (L11).
+
+
+DECISION 4 — Paired reviewers, no self-approval
+------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Every implementation batch is paired with an independent reviewer who has
+  no implementation authority. For this pack that is J40 over J35-J39. The
+  review brief carries the L11 semantic-sanity item and byte checks; a PASS
+  means "no defect found by source audit", never "compiles". The orchestrator
+  alone runs cargo and owns the gate.
+
+WHY
+  Iteration 23 recorded a false PASS: a format check plus a reviewer PASS
+  still produced 12 `E0425` errors after identifier bytes were mangled. In
+  this pack the reviewer caught three real findings (Swift test count, C#
+  README table, stale doc line numbers) and explicitly refused to claim a
+  compile verdict.
+
+SOURCE
+  Ledger `:220` — "add language backends in reviewer-paired batches".
+  Ledger iteration 35 (`:333-339`) — J40 dispatched with the explicit bridge
+  soundness judgement.
+  Ledger iteration 36 (`:340-346`) — "J40 reviewed the final five adapters ->
+  FAIL with 3 findings"; findings routed back to J39 and J36.
+  Review `.reports/reviews/J35-J39.md:3-5`, `:168-173` — "Reviewer:
+  independent reviewer subagent (no implementation authority)", "No cargo,
+  no rustfmt, no gate execution by this reviewer."
+  Ethics L11 (`docs/ethics/lessons.md:226-252`) — format check is not
+  correctness; a later gate defect is recorded as a review finding.
+
+ALIGNMENT
+  Iteration 16 acceptance evidence (1) `cargo test --workspace` green is
+  proven by the orchestrator gate in iteration 42, not by a reviewer marker.
+
+
+DECISION 5 — All five are built-in adapters
+--------------------------------------------
+LOCKED ANSWER [agent decision]
+  `Registry::with_builtin_adapters` registers `CSharpAdapter`,
+  `KotlinAdapter`, `PhpAdapter`, `RubyAdapter` and `SwiftAdapter` after the
+  original ten, so the first-claim order never changes. The built-in
+  extension test asserts `cs`, `kt`, `php`, `rb` and `swift`, and core's
+  `ScanOptions::default()` includes `**/*.cs`, `**/*.kt`, `**/*.php`,
+  `**/*.rb` and `**/*.swift`. `scan_with_registry` remains for private use.
+
+WHY
+  A user running `fnscope scan` without injecting a registry should find all
+  thirteen languages. Registration last preserves the ten earlier adapters'
+  claims; leaving any of the five out would make their fixtures unreachable
+  in a default scan and would break the mixed-manifest acceptance evidence.
+
+SOURCE
+  Shipped `crates/fnscope-parser/src/adapter.rs:69-86` — the five `register`
+  calls with the comment "New languages register last so the original
+  first-claim order cannot change."
+  Shipped `crates/fnscope-parser/src/adapter.rs:121-148` — built-in test rows
+  `("cs", "csharp")`, `("kt", "kotlin")`, `("php", "php")`, `("rb", "ruby")`,
+  `("swift", "swift")`.
+  Shipped `crates/fnscope-core/src/scan.rs:29-46` and `:534-555` — default
+  includes and the assertion that pins them.
+  Review `.reports/reviews/J35-J39.md:153-166` — registration notes for all
+  five; ledger iteration 36 — J41 registration worktree dispatched.
+  `docs/STATUS.md:150-153` — suffix → adapter → id → test-count table.
+
+ALIGNMENT
+  Iteration 16 acceptance evidence (3) and iteration 42's mixed scan: 78
+  functions across `.ts/.js/.rs/.py/.go/.java/.c/.cpp/.cs/.kt/.rb/.php/.swift`
+  with 0 dangling edges. No core graph-builder branch was added.
+
+
+DECISION 6 — PHP grammar constant is `LANGUAGE_PHP`, never `LANGUAGE`
+--------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Both `src/php/discover.rs` and `src/php/body.rs` convert
+  `tree_sitter_php::LANGUAGE_PHP` into `tree_sitter::Language`. The crate has
+  no `LANGUAGE` symbol; `LANGUAGE_PHP_ONLY` is not used.
+
+WHY
+  The full PHP grammar understands `<?php`, inline HTML and `?>`; the
+  PHP-only fragment grammar would mis-slice the fixture files. Verifying the
+  exported constant from cached crate source before coding avoided an
+  L11-class identifier guess.
+
+SOURCE
+  Contract `docs/contract/adapters/php.md:15-26` — "There is **no**
+  `LANGUAGE` constant in this crate"; both constants are named.
+  Review `.reports/reviews/J35-J39.md:120-121` — check 12, "PASS |
+  `LANGUAGE_PHP` everywhere; no `LANGUAGE` assumption".
+  Shipped `crates/fnscope-parser/src/php/discover.rs:20,24` and
+  `crates/fnscope-parser/src/php/body.rs:79`.
+  `docs/STATUS.md:165` — "PHP uses `tree_sitter_php::LANGUAGE_PHP` rather than
+  `LANGUAGE`".
+
+ALIGNMENT
+  Same `.into()` conversion pattern as Python/Go/Rust; unchanged contract
+  types and no new schema field, so the plugin invariant holds.
+
+
+DECISION 7 — Node invocation remains TypeScript/JavaScript-only
+---------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  The five new adapters add parsing only. There is no executor for Kotlin,
+  C#, Ruby, PHP or Swift; invoking one of their functions returns the
+  deterministic simulated trace (usually with an `error` field describing
+  the fallback). `universal` / `node20` stay as recorded runtime labels,
+  not claims that Node can run these languages.
+
+WHY
+  The locked invoke semantics are a Node runner for TS/JS exports with a
+  simulate fallback. Giving the new languages an executor would change the
+  server contract and violate the zero-core-change plugin invariant; the
+  labels must stay stable so schema and enricher need no language branch.
+
+SOURCE
+  `docs/features/fnscope-base/PRD-TRD.md:250-257` — "Node invocation ...
+  remains a TypeScript/JavaScript runner and is not an executor for ... C#,
+  Kotlin, Ruby, PHP or Swift"; non-TS/JS invoke "yields the deterministic
+  simulated trace".
+  `docs/STATUS.md:267-271` — "**Only TypeScript/JavaScript are executed.**"
+  `docs/contract/adapters/php.md:146-150` and
+  `docs/contract/adapters/swift.md:164-168` — runtime labels are execution
+  labels, not real execution.
+
+ALIGNMENT
+  Base PRD-TRD section 9 invoke semantics; iteration 16's invariant that no
+  enricher, server or UI change is needed for a new language.
+
+
+DECISION 8 — Test counts come from the gate, not implementer claims
+--------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Reported counts are not trusted until review and gate. Where a claimed
+  count conflicts with `#[test]` in source, the discrepancy is routed back
+  to the owning job. Final numbers are quoted from the orchestrator gate.
+
+WHY
+  The reviewer found Swift claimed 10 tests but had 9 (F1); the fix was
+  routed to J39, and the source now has 10. Counting by grep is cheap;
+  treating a claim as evidence is not. This is the same L11 discipline that
+  separates format markers from compile results.
+
+SOURCE
+  Review `.reports/reviews/J35-J39.md:135`, `:145` — F1, "the job claims 10
+  unit tests; a `#[test]` count over every owned `.rs` finds 9".
+  Ledger iteration 36 (`:340-346`) — "Routed F1 to J39".
+  `docs/STATUS.md:160-163` — review-time counts versus current source.
+  Ledger iteration 42 (`:387-394`) — `ADAPTER_GATE_STATUS=0`, 233 tests
+  (parser 176).
+
+ALIGNMENT
+  Verification honesty (`docs/ethics/lessons.md:202-252`) and L2 test-failure
+  triage: decide CODE vs TEST before editing, never bend production to a bad
+  assertion. Iteration 40 records the four logic fixes as "All judged CODE
+  against locked spec §4."
+
+
+DECISION 9 — Honest reconstruction, no backdating or invented simulation
+------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  These four files and `archive/simulate-pre.reconstructed.sh` are labelled
+  RECONSTRUCTED and dated 2026-11-26. `simulate.sh` is the canonical
+  post-impl shell simulation over the committed fixtures; the archived
+  script is a labelled design-time placeholder that asserts nothing. No
+  quote, job result or pre-impl artifact is invented to make the pack look
+  older than it is.
+
+WHY
+  The user's correction in iteration 44 was that decisions must be recorded
+  at decision time with why, source and alignment; for work already shipped,
+  the honest remedy is a reconstruction label with citations, not a fake
+  history. Iteration 46 records that no pre-impl artifact existed for these
+  packs.
+
+SOURCE
+  Ledger iteration 44 (`.reports/goal-build-fnscope.md:403-410`) — "all future
+  work uses goal-skill delegated lane with contemporaneous decision records;
+  past packs are RECONSTRUCTED with honest labels and ledger citations."
+  Ledger iteration 45 (`:411-417`) — J47-J53 reconstruct seven packs with
+  "[agent decision] entries containing why/source/alignment".
+  Ledger iteration 46 (`:418-422`) — outage, no files written by the failed
+  jobs, then re-dispatch.
+  Waiver sentence at `:422`, quoted verbatim at the top of this file.
+
+ALIGNMENT
+  The user's explicit instruction "document your decisions and why you made
+  the decisions as you go"; ORIGIN_GATE / DECISION_RECORD culture added by
+  J54 in the same worktree. This file owns only
+  `docs/features/fnscope-final-languages/`.
+
+
+EVIDENCE LIMITS
+---------------
+- No verbatim user prompt exists for this pack beyond the two authority
+  sentences quoted above. There was no Q&A to lock; every answer here is an
+  agent decision made under delegated authority.
+- No pre-impl simulation artifact exists in the evidence for this pack. The
+  archived `simulate-pre.reconstructed.sh` is an explicitly labelled
+  placeholder, not a recovered historical script.
+- The reviewer made a source-and-diff audit only: "No cargo, no rustfmt, no
+  gate execution by this reviewer" (`.reports/reviews/J35-J39.md:28`). All
+  compile and test evidence is the orchestrator's, quoted from iterations
+  38-42; this reconstruction does not run cargo.
+- `tests/fixtures/kotlin_app/README.md:4` still names `tree-sitter-kotlin
+  0.3.8`. That is a stale fixture README line; this job owns only
+  `docs/features/fnscope-final-languages/` and does not edit it. The shipped
+  grammar is the -ng crate (D-6).
+- Review F3 listed stale line numbers in four adapter docs; J44 corrected
+  them before commit (`docs/features/fnscope-base/IMPL.md:53`). This pack
+  does not re-derive those line numbers.
+- "SOUND" is the reviewer's judgement on the deleted pointer bridge, not a
+  verdict that the old grammar was usable (Decision 3).

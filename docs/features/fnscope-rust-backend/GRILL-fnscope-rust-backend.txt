@@ -1,0 +1,249 @@
+fnscope — GRILL-fnscope-rust-backend.txt (requirements lock)
+============================================================
+
+Status: Locked
+Decisions by: agent (delegated by user, 2026-11-25)
+Human gates waived by user, 2026-11-26
+RECONSTRUCTED 2026-11-26
+
+This is a plain-text requirements lock for the `fnscope-rust-backend` feature:
+the Rust language backend that turned `fnscope scan crates/` from zero functions
+into a real function graph. It restates decisions made and recorded during
+iterations 15-20 of the goal build. It is a reconstruction written from the
+committed record on 2026-11-26, not a backdated transcript. No gate was re-run
+to produce it, and no quote is invented where the original words are absent.
+
+
+AUTHORITY RULE (read before any entry)
+--------------------------------------
+The user removed the question loop with the verbatim words "i would prefer you
+use RUST language to develop this. ask me no questions make all decisions
+yourself" (carried in the J10 job brief and quoted in
+`docs/features/fnscope-base/GRILL.txt:22-23`; the delegated-authority fragment
+"ask me no questions make all decisions yourself" is at
+`.reports/goal-build-fnscope.md:12`). Every answer below is therefore marked
+`[agent decision]`: it is the agent's call, made under that authority. REQUEST
+lines are quotes, never answers.
+
+Human approval before acting was waived later. The verbatim user sentence
+carried in the J48 job brief is:
+
+  "It's okay, you don't need a human approval. You can do it, but I just want you to document your decisions and why you made the decisions as you go."
+
+It is reported here verbatim from that brief. The same sentence is NOT present
+in any committed file in this worktree (the same evidence limit is recorded in
+`docs/features/fnscope-base/GRILL.txt` under "EVIDENCE LIMIT" and "Human
+gates"), so no ledger line is invented for it. What the ledger does verify is
+delegated authority at `.reports/goal-build-fnscope.md:12`, explicit
+authorisation of worktree isolation and merging at line 184, and that the
+commit go was still treated as a human gate at line 168. Waiver of approval is
+not waiver of evidence: gates stayed with the orchestrator and real commands
+and verdicts were written into the ledger.
+
+
+VERBATIM USER PROMPTS AVAILABLE TO THIS PACK
+--------------------------------------------
+These are quotes, never answers. Where only a paraphrase is committed, the
+paraphrase is named as such.
+
+REQUEST 1 (verbatim, carried in the J10 job brief; quoted in the base pack):
+  "i would prefer you use RUST language to develop this. ask me no questions make all decisions yourself"
+
+REQUEST 2 (verbatim in the J48 job brief; the ledger paraphrases it):
+  "how about we scan C:\Users\shuga\Desktop\shared\fnscope\crates"
+
+  The committed paraphrase is at `.reports/goal-build-fnscope.md:171`:
+  "User asked to scan `crates/` (Rust source) after seeing the TS/JS 1-Hop Map."
+  The verbatim sentence above is carried in this job brief only; a full-tree
+  search on 2026-11-26 did not find it as a committed ledger line, so the
+  paraphrase is the citable evidence and the quote is labelled by its carrier.
+
+REQUEST 3 (verbatim user sentence carried in the J48 job brief):
+  "It's okay, you don't need a human approval. You can do it, but I just want you to document your decisions and why you made the decisions as you go."
+
+  See AUTHORITY RULE above for the evidence limit and the gates that remained.
+
+
+DECISIONS R1-R7 (all [agent decision] under delegated authority)
+---------------------------------------------------------------
+The ids R1-R7 are restatement labels for this reconstruction. They are not
+drift ids (`docs/drift.md` owns D-N) and they do not extend the base pack's
+D1-D5 list.
+
+R1 [agent decision] - tree-sitter-rust instead of a hand-rolled Rust scanner.
+  DECISION: Add `tree-sitter-rust` (0.24.2) to the workspace and parser
+  manifests and parse Rust with that grammar in
+  `crates/fnscope-parser/src/rust/{discover,body}.rs`. Do not regex-scan Rust
+  source and do not add a second, Rust-only extraction path.
+  WHY: The base build chose tree-sitter for TS/JS precisely because it gives
+  deterministic AST truth in Rust (base pack D1). A hand-rolled scanner would
+  break that determinism and would diverge from the locked extraction rules in
+  the spec: ordered execution steps, throws, purity, permissions and
+  bidirectional `calledBy` edges. The capability gap was a missing backend,
+  not a bug, so the fix was another grammar behind the same rules.
+  SOURCE: `.reports/goal-build-fnscope.md:170-176`, especially line 171
+  (decision to add the backend, `cargo info tree-sitter-rust` -> 0.24.2 at
+  line 172) and line 175 (J15-J18 dispatch);
+  `crates/fnscope-parser/src/rust/discover.rs`, `body.rs`, `mod.rs`;
+  `docs/contract/rust-api.md:94-127` (parser types and functions);
+  `docs/features/fnscope-base/GRILL.txt` D1.
+  ALIGNMENT: serves the locked outcome at ledger line 4 and acceptance
+  evidence 2 at line 7 - a schema-valid manifest with deterministic steps,
+  purity, permissions, throws and `calledBy` edges - for `.rs` as well as
+  TS/JS. Iteration 19 recorded a real fixture scan of 7 functions and 12 steps
+  at ledger line 208.
+
+R2 [agent decision] - `Lang::Rust` first, then the registry.
+  DECISION: The first implementation added `Lang::Rust` to the shared types and
+  passed `lang` through `discover` / `analyze`, exactly as
+  `docs/contract/rust-api.md:94-127` then specified. After iteration 16's
+  polyglot expansion, that choice was replaced: grammar knowledge moved into
+  `RustAdapter` (`crates/fnscope-parser/src/rust/mod.rs:17-40`), `.rs` was
+  claimed through `LanguageAdapter::extensions()`, `fnscope-core` did one
+  registry lookup per file (`crates/fnscope-core/src/scan.rs:243-249`), and
+  `Lang` survived only as a compatibility delegate
+  (`docs/contract/adapter-api.md:43-45`).
+  WHY: Adding the enum variant was the smallest change that made the user's
+  scan work under the contract as it stood. It could not survive the new
+  invariant that adding a language requires ZERO changes to the core graph
+  builder, schema, enricher or UI (ledger lines 182-184). L9 in
+  `docs/ethics/lessons.md:183-189` states the rule as "a new backend is a
+  plugin, not a branch in the graph builder"; J19's
+  `docs/concepts/language-adapter.md` had already flagged the conflict at
+  ledger line 192.
+  SOURCE: ledger line 171 (`Lang::Rust` added), lines 178-189 (scope
+  expansion and contract update), line 192 (flag), lines 238-249 (J21
+  registry refactor); `docs/contract/adapter-api.md:12-45`;
+  `.reports/reviews/J21.md` checklist items 1-5 and its 2026-11-26 re-review;
+  `crates/fnscope-parser/src/rust/mod.rs:17-43`.
+  ALIGNMENT: acceptance evidence 2 for the real `crates/` scan (ledger line
+  183) is met without sacrificing evidence 5, that existing TS/JS gates stay
+  green (ledger line 185), and without editing core, schema, enricher or UI.
+
+R3 [agent decision] - Rust fixture carries the `EMPTY_TEXT` guard.
+  DECISION: `tests/fixtures/rust_app/src/lib.rs` defines `classify` with an
+  early `if text.is_empty() { return Err(AppError { code: "EMPTY_TEXT" }) }`
+  guard, and the backend must emit `ErrorSpec { code: "EMPTY_TEXT" }` for it.
+  The error code is read from the `code` field of a struct expression inside
+  `Err(...)`, not guessed from the type name.
+  WHY: The first real scan exposed a real defect - `classify.errors == []`
+  (iteration 19, ledger line 210) - so the guard is the regression proof, not
+  decoration. It also yields a Branch step, a helper call edge to
+  `normalize_text`, and a `Result<Label, AppError>` return shape, so one small
+  function exercises four locked rules.
+  SOURCE: ledger lines 205-212 (iteration 19: failure class (b) and pivot)
+  and lines 213-220 (iteration 20: `fixture_detail.classifyErrors ==
+  ["EMPTY_TEXT"]` at line 216); `tests/fixtures/rust_app/README.md` section
+  "`classify` is the fallible hub"; `crates/fnscope-parser/src/rust/body.rs:772-830`
+  (`rust_err_code`, `rust_struct_code_field`) and `:935-950` (`build_errors`).
+  ALIGNMENT: acceptance evidence 2 (throws / `errors`) at ledger line 7 and
+  the corrected fixture evidence at line 216. It is a scan-time fact; no Rust
+  code is executed.
+
+R4 [agent decision] - cross-file struct fields survive the Rust backend (D-2).
+  DECISION: Reuse the base pack's cross-file type resolution for Rust struct
+  shapes. `RustAdapter::collect_types` delegates to
+  `discover::collect_types` and `RustAdapter::resolve_return_fields` delegates
+  to the shared, grammar-free `crate::resolve::resolve_fields`
+  (`crates/fnscope-parser/src/rust/mod.rs:33-43`). Rust structs discovered in
+  the scanned set unpack into `ReturnShape.fields`; external types fall back
+  to their written names.
+  WHY: D-2 was a resolved drift about aliases declared in another module. A
+  new backend must not reintroduce it by resolving only within one file, and
+  it must not add a Rust-only resolver: that would be a second copy of logic
+  the base pack already owns.
+  SOURCE: `docs/drift.md:33-37` (D-2 and its `Resolved` note);
+  `crates/fnscope-parser/src/rust/mod.rs:33-43` and its test at `:46-63`
+  (asserts two fields for `Result<Label, AppError>`);
+  `docs/contract/rust-api.md:57-67` (`ReturnShape`, `ReturnField`);
+  `README.md` "Cross-file type resolution is best effort".
+  ALIGNMENT: keeps the locked schema unchanged (no `qualified_name` or other
+  new field) while satisfying the graph-shape part of acceptance evidence 2
+  at ledger line 7.
+
+R5 [agent decision] - `println!` becomes `console:out`.
+  DECISION: Classify Rust logging macros `println!` / `eprintln!` as
+  `Purity::SideEffect` with permission `console:out`; the fixture's `report`
+  function is the proof. Other markers follow the same text classifier
+  (`net:outbound`, `fs:read`, `fs:write`, `secrets:read:<KEY>`).
+  WHY: The locked purity/permissions rules must mean the same thing for Rust
+  as for TS/JS. A conservative text classification keeps scanning
+  deterministic and avoids executing code, which the backend explicitly does
+  not do.
+  SOURCE: `crates/fnscope-parser/src/rust/body.rs:964-1024`
+  (`classify_rust_effects`, logging check at `:970`, `console:out` insert at
+  `:989`); `crates/fnscope-parser/src/rust/mod.rs` test
+  `rust_analysis_matches_pre_refactor_facts`; `tests/fixtures/rust_app/README.md`
+  section "`report` is a side effect"; `docs/contract/rust-api.md:30-33`.
+  ALIGNMENT: acceptance evidence 2 (purity and permissions) at ledger line 7;
+  matches the base spec's example permission scheme without a schema edit.
+
+R6 [agent decision] - runtime labels unchanged.
+  DECISION: Rust records keep the carried runtime strings `universal` /
+  `node20` and the same timeout budget as other pure, side-effecting and
+  network functions (150 / 1000 / 5000 ms). No Rust-specific runtime string,
+  `executor` field or schema version was added.
+  WHY: `docs/contract/rust-api.md` locks the schema; adding a field for one
+  language would break every consumer. The labels describe the recorded
+  target environment, not a claim that Node can run Rust.
+  SOURCE: `docs/contract/rust-api.md:27` (runtime examples) and `:38-40`
+  (`timeoutMs` / `permissions`); `README.md` "Runtime labels are carried data,
+  not executors"; `docs/contract/adapters/go.md:117` and `:126-128` (the same
+  decision for another non-Node language); ledger lines 182-184 (zero changes
+  to schema, enricher or UI).
+  ALIGNMENT: satisfies the zero-core-change invariant while keeping the
+  manifest schema stable; supports the explicit non-goal that invoking a Rust
+  function yields the deterministic simulated trace, not execution.
+
+R7 [agent decision] - `crates/` self-scan is acceptance evidence.
+  DECISION: Prove the backend with two real scans, not simulation alone: the
+  small fixture and the repository's own Rust tree. Recorded results are
+  fixture = 7 functions / 12 steps / 2 calledBy edges / 2 resolved calls /
+  0 dangling (iteration 19) and `crates/` = 188 functions / 722 steps /
+  243 edges / 243 resolved calls / 0 dangling (iteration 19), then 190 /
+  732 / 245 / 245 / 0 after the EMPTY_TEXT fix (iteration 20).
+  WHY: The user's request was to scan `crates/` (REQUEST 2). A fixture scan
+  proves extraction rules but not that the real tree, with its many files and
+  generated directories, is handled. The `**/target/**` exclude is part of
+  that proof.
+  SOURCE: ledger lines 170-171 (request and zero-function baseline), line 208
+  (both real scans), line 216 (post-fix rescan); `README.md` quick start
+  ("scan a Rust tree such as `crates/`") and `tests/fixtures/rust_app/README.md`
+  ("File filtering"); `crates/fnscope-core/src/scan.rs:29-46` (default globs).
+  ALIGNMENT: acceptance evidence 2 at ledger line 7 and the expanded
+  acceptance evidence 2 at line 183 ("a real scan of `crates/` yields
+  non-zero functions, accurate steps and valid `calledBy` links").
+
+
+SCOPE AND OWNERSHIP
+-------------------
+Jobs J15 (parser), J16 (core `.rs` discovery), J17 (fixture) and J18 (docs)
+were dispatched at ledger line 175 and landed by iteration 18 (line 199).
+J21 later moved the grammar behind `LanguageAdapter`; that refactor is owned
+by the adapter contract, not by this pack. This reconstruction owns only
+`docs/features/fnscope-rust-backend/` and writes no code, runs no cargo and
+makes no commit. The canonical simulation is
+`docs/features/fnscope-rust-backend/simulate.sh`; its design-time mirror is
+`archive/simulate-pre.reconstructed.sh`. Neither is backdated evidence.
+
+
+EVIDENCE LIMITS AND AMBIGUITIES
+-------------------------------
+1. The verbatim sentences in REQUEST 2 and REQUEST 3 are carried in the J48
+   job brief. Only paraphrases are committed (ledger line 171 for REQUEST 2;
+   base pack GRILL "Human gates" for REQUEST 3). They are labelled by carrier
+   and are not attributed to a ledger line that does not exist.
+2. The real gate markers are quoted from the ledger, not re-run here:
+   `RUST_GATE_STATUS=101` (line 200), `RUST_GATE2_STATUS=0` (line 208),
+   `fixture_detail.classifyErrors == ["EMPTY_TEXT"]` and the 190-function
+   rescan (line 216). Commit hashes are cited as recorded in the ledger;
+   `docs/STATUS.md:373-376` notes that early hashes were superseded by a
+   history rewrite, so the current git subject of `a961c53` is simply `feat:`.
+3. Iteration 19 accepted, rather than "fixed", the dotted-impl expectation:
+   the qualification lives in the id `calculator-scale`, not in `name`, and
+   the locked schema has no `qualified_name` field (ledger line 210). The
+   fixture doc was corrected instead of the schema (ledger line 211).
+4. Alignment with L10 and L11: this pack's LF check is
+   `tr -cd '\r' < file | wc -c` run from a script file, never an inline
+   double-quoted `\r` or `sed 's/\r$//'`. A format check is never presented as
+   compile evidence (docs/ethics/lessons.md:202-252).

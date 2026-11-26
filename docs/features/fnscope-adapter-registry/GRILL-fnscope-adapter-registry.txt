@@ -1,0 +1,330 @@
+fnscope-adapter-registry — GRILL (requirements lock, reconstructed)
+===================================================================
+
+RECONSTRUCTED 2026-11-26. This file was written after J21 (the adapter-registry
+refactor) and J22 (its independent review) shipped. It is NOT a pre-impl
+artifact and must not be read as one. Every claim below is tied to a ledger
+iteration, a review, the locked contract, or a file:line in this repository.
+No quote is invented and no date is backdated.
+
+Status: Locked
+Decisions by: agent (delegated by user, 2026-11-26)
+Human gates waived by user, 2026-11-26. Verbatim user sentence:
+
+  "It's okay, you don't need a human approval. You can do it, but I just want you to document your decisions and why you made the decisions as you go."
+
+Source: the J49 reconstruction brief (user instruction delivered 2026-11-26).
+Caveat: `docs/features/fnscope-base/GRILL.txt:182-189` recorded this instruction
+as a paraphrase because no committed file then held the sentence. It is quoted
+verbatim here because the J49 brief supplies it verbatim; it is not backdated.
+
+Verbatim user polyglot prompt from iteration 16:
+
+  "polyglot language support with a pluggable Tree-sitter/language-backend architecture."
+
+Source: `.reports/goal-build-fnscope.md:179` — "Action: User expanded the goal
+to polyglot language support with a pluggable Tree-sitter/language-backend
+architecture." The same wording is quoted at `docs/concepts/language-adapter.md:6`
+and `docs/ethics/lessons.md:189-190`. This is the exact expansion text recorded
+in this repo; no longer user transcript exists here and none is invented below.
+
+AUTHORITY RULE (read before any entry)
+--------------------------------------
+No question was asked of the user for this pack and no answer was confirmed
+with the user. Every LOCKED ANSWER below is an [agent decision] made under the
+delegated authority quoted above. Quoted words are evidence from the ledger, a
+review, the locked contract or a repo file — never invented user receipts.
+Where the evidence does not support a stronger claim, the limit is stated under
+EVIDENCE LIMITS at the end.
+
+
+DECISION 1 — A registry trait, not a growing Lang enum with per-language branches
+--------------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Put all language knowledge behind `LanguageAdapter: Send + Sync` (six methods:
+  `id`, `extensions`, `discover`, `analyze`, `collect_types`,
+  `resolve_return_fields`) and `Registry` in
+  `crates/fnscope-parser/src/adapter.rs`. Keep `Lang` public only in `types.rs`
+  for compatibility with the original entry points; core neither imports nor
+  matches on it. Register one `TypeScriptAdapter` per suffix (`.ts`, `.tsx`,
+  `.js`, `.jsx`) so the original grammar choice is preserved byte-for-byte.
+
+WHY
+  Iteration 15 answered "Rust scan returned 0" by adding `Lang::Rust` and a
+  `.rs` branch in core. Iteration 16 expanded that to many languages; scaling
+  the enum-and-match pattern would make core the owner of every grammar, spread
+  `match` arms across crates and break disjoint file ownership. The concept
+  calls this the anti-pattern and states the rule: a new backend is a plugin,
+  not a branch in the graph builder. Four TS-family instances are needed
+  because `discover`/`analyze`/`collect_types` receive no path, so one instance
+  could not select the TSX grammar for `.tsx` and JavaScript for `.jsx`.
+
+SOURCE
+  Ledger iteration 15 (`.reports/goal-build-fnscope.md:170-176`) — the `Lang::Rust`
+  approach; iteration 16 (`:178-188`) — the expansion quoted above and the
+  outcome "adding a language requires ZERO changes to core graph builder,
+  schema, enricher or UI" (`:181`).
+  `docs/concepts/language-adapter.md` — "Anti-pattern: per-language `if`
+  branches in core" and "The invariant".
+  `docs/contract/adapter-api.md:12-32` (trait/registry sketch), `:62-83`
+  (four documented deviations with reasons), `:100-123` (core change).
+  Shipped code `crates/fnscope-parser/src/adapter.rs:17-48` (trait),
+  `:54-91` (Registry), `:94-96` (`registry()`), `:62-77` (four TS-family
+  registrations).
+
+ALIGNMENT
+  Serves L9 ("A new backend is a plugin, not a branch in the graph builder",
+  `docs/ethics/lessons.md:187-200`) and iteration 16's zero-core-change
+  outcome. The sealed grammar boundary is what makes every later language
+  batch (Python, Go, and the rest) an adapter-only change.
+
+
+DECISION 2 — Core stays language-neutral: one extension lookup per file
+------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  `fnscope-core/src/scan.rs` imports only `LanguageAdapter` and `Registry`.
+  Production code performs exactly one `registry.for_extension(extension)`
+  call per discovered file, then calls `adapter.collect_types`,
+  `adapter.discover`, `adapter.resolve_return_fields` and `adapter.analyze`.
+  There is no `Lang` import, no per-language `if`/`match`, and no change to
+  ids, hashes, name-to-id maps, `calledBy` edges or manifest assembly.
+
+WHY
+  File walking, id and hash assignment, edge resolution and manifest I/O are
+  identical for every grammar. Keeping that code language-free means a defect
+  or addition in one adapter cannot regress another language through core.
+
+SOURCE
+  `docs/contract/adapter-api.md:100-123` — the one dispatch point and the
+  untouched core operations.
+  Shipped `crates/fnscope-core/src/scan.rs:8` (imports), `:217-225` (`scan`),
+  `:227-236` (`scan_with_registry`), `:253-281` (file loop, sole lookup at
+  `:262-268`), `:285-314` (id/name/edge passes).
+  Review `.reports/reviews/J21.md` checklist 4 and its re-review checklist 4:
+  "standalone `Lang` count in `scan.rs` = 0".
+
+ALIGNMENT
+  Directly enforces iteration 16's "ZERO changes to core graph builder" and
+  L9's checkable procedure ("diff the change and confirm only the adapter
+  registry plus the new adapter ... moved").
+
+
+DECISION 3 — Adding a language must not touch core, schema, enricher or UI
+--------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  A new language is delivered as: an adapter implementing the six trait
+  methods, its registry entry, its fixture and its unit + integration tests.
+  Any diff that also touches `fnscope-core`'s graph builder, `fnscope-model`,
+  `fnscope-enrich`, `ui/`, `docs/contract/rust-api.md` or the schema version is
+  a stop-and-review condition recorded in `docs/drift.md`, not a branch to add.
+
+WHY
+  The schema, enricher and UI consume `FnGraph` and have no grammar knowledge.
+  Letting a language leak into them would produce per-language fields, runtime
+  labels and UI cases, defeating the single manifest that iteration 16
+  acceptance evidence (3) requires ("a mixed polyglot fixture scans correctly
+  in one manifest").
+
+SOURCE
+  Ledger iteration 16 (`.reports/goal-build-fnscope.md:181`, `:182`) — the
+  outcome and acceptance evidence (3) and (5).
+  `docs/concepts/language-adapter.md` — "What core owns", "The invariant",
+  "How to add a language (recipe)".
+  `docs/contract/adapter-api.md:100-123` — "No edit to ... is part of this
+  recipe. If any step appears to require one, stop and raise it as
+  architecture drift".
+  `docs/ethics/lessons.md:187-200` (L9) and `docs/ethics/boundary-discipline.md:50`.
+  Later confirmation: ledger iteration 24 (`:251`) routes registration to a
+  separate job so language work never edits core directly.
+
+ALIGNMENT
+  The seam keeps `tool: "fnscope"`, `schemaVersion: "1.0.0"` and the locked
+  `DiscoveredFn`/`BodyAnalysis`/`Step`/`ErrorSpec`/`ReturnShape` types stable;
+  J22 confirmed no model file changed (`.reports/reviews/J21.md` checklist 2).
+
+
+DECISION 4 — `scan_with_registry` is the single injection seam
+---------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Add one public function `scan_with_registry(options, out_dir, generated_at,
+  &registry)`. `scan` keeps its original signature and becomes a thin delegate
+  that builds `registry()` and calls `scan_with_registry`. No global mutable
+  registry is introduced; a caller or unit test injects the registry it wants.
+  `ScanOptions`, `ScanReport`, `write_manifest` and `read_manifest` are unchanged.
+
+WHY
+  The proof that adding a language needs no core edit is that a foreign
+  adapter can be passed into core from outside. A global registry would hide
+  that dependency and make tests order-dependent; a new function with an
+  explicit parameter keeps the seam visible and the default path unchanged.
+
+SOURCE
+  `docs/contract/adapter-api.md:52-60` ("Core injection seam ... a new public
+  function was needed so a caller ... can inject a registry without global
+  mutable state") and `:100-123`.
+  Shipped `crates/fnscope-core/src/scan.rs:217-225` (`scan` delegate) and
+  `:227-236` (`scan_with_registry`).
+  Test `crates/fnscope-core/src/scan.rs:623-711` (`FakeAdapter` claiming
+  `.zig`, built-in scan empty, injected scan yields one function `zeta`).
+  Review `.reports/reviews/J21.md` checklist 4 and 7.
+
+ALIGNMENT
+  Establishes the acceptance evidence that an unregistered suffix yields
+  nothing while an injected adapter is selected — the registry seam is
+  observable without editing core.
+
+
+DECISION 5 — One registration job per batch; worktrees stay disjoint
+---------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Adapter implementation jobs own only their adapter module, contract doc and
+  fixtures. They record the exact registration edits they need but do not make
+  them. One later orchestrator-delegated job applies the shared edits
+  (manifests, `lib.rs`, `adapter.rs`, core default globs). Two worktrees never
+  write the registry or a manifest at the same time.
+
+WHY
+  Concurrent worktrees editing `adapter.rs` or `Cargo.toml` would overwrite
+  each other and make a review diff unattributable. Splitting registration
+  into one reviewed job also lets a single gate verify the combined wiring.
+
+SOURCE
+  Ledger iteration 20 (`.reports/goal-build-fnscope.md:215-220`) — every
+  subsequent brief states that an independent reviewer audits it, pastes the
+  checklist, and forbids cargo, temp files and commits.
+  Ledger iteration 24 (`:251`) — "per-language adapters are registered by a
+  separate orchestrator-delegated job after review, so two worktrees never
+  edit the registry file".
+  Iteration 25 (`:259`) repeats the pivot for Python/Go; iteration 26 (`:263`)
+  dispatches J26 for the registration edits.
+  Review `.reports/reviews/J21.md` checklist 9 — scope limited to owned paths.
+
+ALIGNMENT
+  AGENTS.md "Parallel work rule" and "one logical change = one commit". The
+  registry remains a single, reviewable seam instead of a merge conflict.
+
+
+DECISION 6 — Paired reviewers: implementation and review are separate jobs
+---------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Every implementation job is paired with an independent reviewer that has no
+  implementation authority. The review notice and checklist are carried in
+  the brief verbatim; no job self-approves. A reviewer PASS means "no defect
+  found by source audit"; only the orchestrator's compile/test gate is compile
+  evidence. Agents never run cargo, merge or commit.
+
+WHY
+  The user's orchestrator rule ("you review and criticize", carried in
+  `docs/features/fnscope-base/GRILL.txt:58-60`) rules out self-approval. It was
+  adopted for this pack at iteration 20 and used for J22 at iteration 22 —
+  and the first J22 PASS turned out to be false, which is why the rule now
+  names the limits of a review explicitly.
+
+SOURCE
+  Ledger iteration 20 (`.reports/goal-build-fnscope.md:215-220`) — "adopted
+  the reviewer-process workflow — every subsequent implementation brief now
+  states that an independent reviewer will audit it, pastes the checklist,
+  and forbids cargo/temp files/commits".
+  Iteration 22 (`:230-236`) — J22 dispatched "with no implementation
+  authority, per `docs/workflows/reviewer-process.md`".
+  `.reports/reviews/J21.md` header — "Verdict: PASS; Reviewer: independent
+  reviewer subagent (no implementation authority)" and "Known limits".
+  `docs/features/fnscope-base/GRILL.txt` R6 (failures loop back to the owner).
+
+ALIGNMENT
+  Makes the gate verdict auditable: the review file records evidence and
+  limits, the orchestrator records the real gate, and neither is a claim by
+  the author of the code.
+
+
+DECISION 7 — A false rustfmt PASS becomes L11, not a discarded incident
+------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Treat `rustfmt --check` as formatting evidence only. After J21's clean
+  format marker and J22's PASS were followed by 12 `E0425` errors, record the
+  rule as L11: a syntax/format check is NOT a correctness check. Reviewer
+  briefs gain a semantic-sanity item (truncated/undefined identifiers, wrong
+  arity); byte normalization uses `tr -d '\r'` and is verified with
+  `tr -cd '\r' < file | wc -c` == 0 — never `sed 's/\r$//'`.
+
+WHY
+  The merge had stripped the final `r` from `adapter`, `declarator`, `inner`
+  and `member` (`adapte`, `declarato`, `inne`, `membe`) because a normalization
+  command treated `\r$` as a literal trailing `r`. Formatting was green while
+  the code could not compile. The reviewer had accepted the format marker as
+  correctness even though its own "Known limits" admitted it had not re-run
+  formatting.
+
+SOURCE
+  Ledger iteration 23 (`.reports/goal-build-fnscope.md:238-244`) — the 12
+  `E0425` errors and the pivot to a semantic-sanity checklist item.
+  `docs/drift.md:45` — D-4 records J21's `ALL_OWNED_RS_FMT_OK` and J22's PASS
+  against the real gate output.
+  `.reports/reviews/J21.md` — original "Verdict: PASS" / "Findings: None",
+  the `## Re-review 2026-11-26` section and finding F1 (superseded).
+  `docs/ethics/lessons.md:226-252` — L11 incident, rule and checkable
+  procedure; `docs/workflows/reviewer-process.md:85-97` — checklist item 12.
+
+ALIGNMENT
+  Iteration 16 acceptance evidence (1) is proven by the compile gate alone.
+  The false green stays visible as evidence instead of being rewritten.
+
+
+DECISION 8 — D-4 is closed with real evidence, not by deleting the false PASS
+------------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Open the drift entry before fixing (D-4). Close it only after every
+  truncated identifier is restored, `tr -cd '\r' < file | wc -c` returns 0 for
+  all 13 J21 files, the real `cargo test --workspace` passes, and J22
+  re-reviews with the semantic-sanity item. Mark D-4 `Resolved` with a
+  `Verified by:` note; keep the original `Verdict: PASS` in
+  `.reports/reviews/J21.md` as the record of the false green.
+
+WHY
+  AGENTS.md makes drift a gate: a gap between spec/contract and code is
+  written down before the next edit, and an entry is never deleted to silence
+  a check. A corrected verdict must cite the gate that produced it, otherwise
+  the next reader cannot tell evidence from assertion.
+
+SOURCE
+  `docs/drift.md:45-49` — D-4 row, closure conditions and the `Resolved`
+  note: "re-merged ... with `cp` only (no sed)", "0 for all 13
+  (`REMERGE_OK`)", "`ADAPTER_GATE_STATUS=0` with 101 tests passing (parser
+  44)", "SHA256 13/13", "The original false PASS was not deleted."
+  Ledger iteration 24 (`.reports/goal-build-fnscope.md:246-252`) — the gate,
+  the re-review and commit `a6f5cde refactor: pluggable language adapter
+  registry`.
+  `.reports/reviews/J21.md` — `Verdict (re-review): PASS`, 0 findings, plus
+  finding F2 (D-4 status lag recorded for the orchestrator, not hidden).
+
+ALIGNMENT
+  Closes the only drift created by this pack. Iteration 24 records the
+  refactor as shippable only after the gate and re-review, matching the
+  "never commit red" culture rule.
+
+
+EVIDENCE LIMITS
+---------------
+- The verbatim polyglot text available in this repo is the expansion phrase
+  at `.reports/goal-build-fnscope.md:179` (quoted at the top). No fuller user
+  transcript exists here; nothing above reconstructs one.
+- The waived-approval sentence is verbatim from the J49 reconstruction brief,
+  not from a committed file. `docs/features/fnscope-base/GRILL.txt:182-189`
+  recorded only a paraphrase because the sentence was not in the tree then.
+- J21 ran no cargo and wrote no verdict. The contract says "Gates were not run
+  by J21. Verdicts belong to the orchestrator" (`.reports/reviews/J21.md`
+  "Known limits"; `docs/contract/adapter-api.md:137`). Compile evidence is
+  the orchestrator's `ADAPTER_GATE_STATUS=0` at iteration 24.
+- J22's first PASS was false and is preserved as historical evidence; its
+  re-review PASS is the verdict that counts. Neither is a compile claim by
+  the reviewer.
+- No pre-impl simulation artifact exists in the evidence for this pack. The
+  archived `simulate-pre.reconstructed.sh` is an explicitly labelled
+  design-time placeholder, not a recovered historical script.
+- The seven built-ins described in `docs/contract/adapter-api.md` are the J21
+  state (four TS-family + Rust, with Python/Go added by later jobs). The
+  current registry in `adapter.rs` has fifteen registrations; the seam and
+  method signatures are unchanged. Both counts are quoted from their sources,
+  not reconciled by invention.
+- The commit hash `a6f5cde` and test count 101 (parser 44) are cited from the
+  ledger and re-review; this reconstruction ran no cargo and made no commit.

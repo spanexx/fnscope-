@@ -1,0 +1,344 @@
+fnscope-java-c-cpp — GRILL (requirements lock, reconstructed)
+=============================================================
+
+RECONSTRUCTED 2026-11-26. This file was written after J30-J34 shipped the
+Java, C and C++ adapters in commit `5408cad`. It is NOT a pre-impl transcript.
+Every claim below is tied to a ledger iteration, a review line, the locked
+spec, a contract doc or a shipped file:line. No quote is invented and no date
+is backdated.
+
+Status: Locked
+Decisions by: agent (delegated by user, 2026-11-26)
+Human gates waived by user, 2026-11-26. Verbatim sentence carried in the J51
+delegated brief:
+
+  "It's okay, you don't need a human approval. You can do it, but I just want you to document your decisions and why you made the decisions as you go."
+
+EVIDENCE LIMIT ON THAT SENTENCE: it is quoted here from the J51 delegated
+brief, not from a committed ledger line. The base pack records the same limit
+for a shorter paraphrase: `docs/features/fnscope-base/GRILL.txt:182-190` says
+"that exact sentence is not present in any committed file in this worktree and
+no ledger line can be cited for it" (repeated at `:293-297`). What the ledger
+does carry verbatim is the earlier delegation, `.reports/goal-build-fnscope.md:12`:
+"ask me no questions make all decisions yourself". No stronger claim is made
+here: approval was waived, verification was not.
+
+AUTHORITY RULE (read before any entry)
+--------------------------------------
+No question was asked of the user for this pack and no answer was confirmed
+with the user after the fact. Every LOCKED ANSWER below is an [agent decision]
+made under the delegated authority recorded above. Quoted words are evidence
+from the ledger, the review, the locked spec, a contract doc or a fixture
+README — never invented user receipts. Where the evidence supports only a
+limited claim, that limit is stated at the end of this file.
+
+
+DECISION 1 — Java, C and C++ ship as one batch
+----------------------------------------------
+LOCKED ANSWER [agent decision]
+  Implement the three adapters in three isolated worktrees (J30 Java, J31 C,
+  J32 C++), review them together (J33), register them together (J34), gate all
+  three together and land them as one logical change, commit `5408cad`.
+
+WHY
+  All three need the same unowned edits: three grammar dependencies, three
+  `pub mod` lines, three `register(...)` calls, two id-table rows per language
+  and five default scan globs. One batch amortizes that shared registration
+  and produces one gate verdict and one commit instead of three partially
+  wired adapters. Keeping the implementation worktrees disjoint preserves the
+  repo's bounded write windows.
+
+SOURCE
+  Ledger iteration 30 (`.reports/goal-build-fnscope.md:294-300`) — "Created
+  three isolated worktrees and dispatched J30 (Java), J31 (C), J32 (C++)",
+  and "Next: review J30-J32, register them in one job, gate, commit".
+  Iteration 31 (`:302-308`) — each adapter reported with its own test count,
+  "single registration job after review, as before".
+  Iteration 32 (`:310-315`) — one J33 review, one J34 registration worktree.
+  Iteration 35 (`:333-338`) — "batch committed as `5408cad`" after one gate.
+  `git show --stat 5408cad` — 26 files, including all nine adapter `.rs`
+  files, three contract docs and three fixture READMEs.
+
+ALIGNMENT
+  Iteration 16's outcome (`.reports/goal-build-fnscope.md:181`) requires the
+  standard language set with "ZERO changes to core graph builder, schema,
+  enricher or UI"; one registry seam serves all three. The batch's real gate
+  is iteration 35: 130 tests, 46 functions over 8 extensions, 0 dangling.
+
+
+DECISION 2 — The C module is named `c_lang`
+-------------------------------------------
+LOCKED ANSWER [agent decision]
+  The directory and module are `crates/fnscope-parser/src/c_lang/`. The public
+  type stays `CAdapter`, the id stays `"c"` and the suffix stays `"c"`.
+
+WHY
+  `c` alone is easy to confuse with the `fnscope-parser` crate and with the C
+  toolchain. Only the internal module name changes; the public contract is not
+  renamed, so manifest ids and registry lookups remain stable.
+
+SOURCE
+  `docs/contract/adapters/c.md:12-16` — "The directory is `c_lang/`: `c` alone
+  would be easy to confuse with the crate name and with the C toolchain."
+  `crates/fnscope-parser/src/c_lang/mod.rs:3-5` — same rationale in the module
+  header; `:40-49` — `CAdapter`, `id() == "c"`, `extensions() == &["c"]`.
+  Review `.reports/reviews/J30-J32.md:37` and registration note `:81` —
+  "add `pub mod c_lang;`" and `use crate::c_lang::CAdapter;`.
+
+ALIGNMENT
+  Iteration 16's plugin invariant: grammar knowledge is local to the adapter;
+  the stable `"c"` identity is what the registry and the manifest see.
+
+
+DECISION 3 — C does not claim `.h`
+----------------------------------
+LOCKED ANSWER [agent decision]
+  `CAdapter::extensions()` is exactly `&["c"]`. Header files are excluded, as
+  are prototypes inside `.c` files; only top-level `function_definition`
+  nodes become callables.
+
+WHY
+  A header repeats a declaration that has an implementation in a `.c` file.
+  Indexing both would create duplicate functions with different ids and
+  pollute the bidirectional call graph. The same reason applies to prototypes.
+
+SOURCE
+  `docs/contract/adapters/c.md:23-27` — "Header files are not claimed. `.h`
+  files repeat declarations that already have an implementation in a `.c`
+  file; discovering both would add duplicate functions with different ids and
+  pollute the call graph."
+  `crates/fnscope-parser/src/c_lang/mod.rs:8-10` — the same module note;
+  `:38-40` — extensions excludes headers.
+  Review `.reports/reviews/J30-J32.md:37` — "`.h` deliberately excluded";
+  `:40` records top-level `function_definition` only, with prototypes and
+  nested definitions excluded.
+  `tests/fixtures/c_app/README.md:25-26` — "Header declarations are
+  deliberately not discovered: the adapter claims only `.c`."
+
+ALIGNMENT
+  Avoids duplicate ids and dangling edges, serving iteration 16's evidence
+  (3) "a mixed polyglot fixture scans correctly in one manifest" and the
+  iteration 35 scan that reported 0 dangling edges.
+
+
+DECISION 4 — C++ claims `cpp` and `cc`, not a wider table
+---------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  `CppAdapter::extensions()` is `&["cpp", "cc"]`. `.cxx`, `.c++`, `.hpp` and
+  `.hh` are deliberately not claimed by J32.
+
+WHY
+  Those two bare, lowercase suffixes cover the most common C++ translation
+  unit spellings without overlapping another adapter. A wider suffix table is
+  a registration decision for a later job, not a unilateral adapter edit.
+
+SOURCE
+  `docs/contract/adapters/cpp.md:8-14` — "`extensions()` returns
+  `&["cpp", "cc"]` ... `.cxx`, `.c++`, `.hpp` and `.hh` are intentionally not
+  claimed: this job owns only the two suffixes in the brief, and a wider table
+  belongs to a future registration decision."
+  `crates/fnscope-parser/src/cpp/mod.rs:41-46` — same note and the array.
+  Review `.reports/reviews/J30-J32.md:51` — "bare lowercase `&["cpp", "cc"]`
+  at `:45`; rationale for excluding `.cxx`/`.hpp` at `:41-42`"; registration
+  note `:88` adds `("cpp", "cpp")` and `("cc", "cpp")`.
+
+ALIGNMENT
+  Registry suffixes are stored without a leading dot and compared
+  case-insensitively (`docs/contract/adapters/cpp.md:11-12`), so the two
+  entries resolve `.cpp`, `.cc`, `.CPP` and `.CC` without a schema change.
+
+
+DECISION 5 — Java callables are qualified by their class
+---------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Only `class_declaration`, `interface_declaration` and `record_declaration`
+  at the file root are walked. Every callable is `ClassName.method` with
+  `class_name = Some("ClassName")` and `FnKind::Method`; a constructor is
+  `ClassName.ClassName`. Record components feed the type index. Nested local
+  classes are not descended.
+
+WHY
+  Java has no module-level functions: a method without its type would have an
+  ambiguous name and could collide with a method of another class. Qualifying
+  by class, and sorting/deduping by `(line, qualified_name)`, keeps ids stable
+  and the call graph unambiguous.
+
+SOURCE
+  `docs/contract/adapters/java.md:35-37` — "Only these three kinds are walked
+  at the root. Java has no module-level functions, so a method is never
+  recorded without a type."
+  `:68-70` — "Every callable is `ClassName.method` with
+  `class_name = Some("ClassName")` and `FnKind::Method`".
+  `crates/fnscope-parser/src/java/discover.rs:46` (root kinds), `:101`
+  (`format!("{class_name}.{name}")`), `:124` (`class_name`), `:75-76` (sort
+  and dedup).
+  Review `.reports/reviews/J30-J32.md:26` — "qualified name `ClassName.method`
+  at `:101`, `class_name` at `:124` ... nested local classes excluded".
+  `tests/fixtures/java_app/README.md:19-26` — seven expected qualified names
+  including `FunctionError.FunctionError`, plus the `RoleResult` type.
+
+ALIGNMENT
+  The stable id and `calledBy` edge contract in the locked schema need one
+  unambiguous name per callable; the fixture's two call edges resolve through
+  those names (README `:50-56`).
+
+
+DECISION 6 — Grammar wrapper nodes are unwrapped in the adapter, not in core
+---------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  Each adapter names and unwraps the wrapper nodes of its own grammar and
+  keeps a fallback to the original node when a wrapper is absent. Java walks
+  `class_body`, `interface_body`, `formal_parameters`, `block` and switch
+  groups; C unwraps `field_declaration_list` for records and handles
+  pointer/parenthesized declarators; C++ unwraps `field_declaration_list`,
+  `condition_clause`, `argument_list` and `init_declarator` and checks for a
+  `statement_list` defensively. No core file changes.
+
+WHY
+  These grammars insert nodes between a block or declaration and the fact the
+  adapter expects as a direct child. The Python/Go batch had already failed
+  nine tests for exactly this reason (ledger iterations 28-29). Unwrapping in
+  the adapter keeps grammar knowledge behind the plugin seam.
+
+SOURCE
+  Ledger iteration 31 (`.reports/goal-build-fnscope.md:304`) — "handle grammar
+  wrapper nodes explicitly".
+  Ledger iteration 30 (`.reports/goal-build-fnscope.md:295`) — dispatch with
+  "wrapper-node warnings". Review `.reports/reviews/J30-J32.md:26`, `:40`,
+  `:54` — wrapper evidence for Java, C and C++ discovery/body; `:96` —
+  "Grammar node-kind behavior (wrapper names,
+  `statement_list` absence, `throw_statement`, `optional_parameter_declaration`)
+  was verified against each agent's contract doc and the cached bindings".
+  `docs/contract/adapters/java.md:35-49`, `docs/contract/adapters/c.md:38-44`,
+  `docs/contract/adapters/cpp.md:49-73` — the named wrapper tables.
+  `docs/ethics/lessons.md:187-199` (L9) — a new language is a plugin, not a
+  branch in the graph builder.
+
+ALIGNMENT
+  Iteration 16's zero-core-change invariant and acceptance evidence (3); all
+  wrapper handling shipped inside the three adapter directories in `5408cad`.
+
+
+DECISION 7 — Error `when` keeps the enclosing condition verbatim, parentheses included
+--------------------------------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  `ErrorSpec.when` is the exact text of the nearest enclosing `if (...)`
+  condition, including its parentheses. For `if (text.isEmpty()) { throw ...
+  }` the value is `(text.isEmpty())`. A throw with no guard uses the
+  deterministic fallback `explicit throw`. The Java test assertion, not the
+  production code, was corrected in iteration 34.
+
+WHY
+  The locked spec says to extract the enclosing `if (...)` condition *as*
+  `when`; stripping the parentheses would change that text. The sibling Rust,
+  Python and TypeScript adapters report the same text. Iteration 34 recorded
+  a mismatch between a test expecting no parentheses and the code following
+  the spec; per L2 the contract decides which side is wrong.
+
+SOURCE
+  `fnscope_architecture_agent_build_spec.md:93-96` — "### Step 4: Error
+  (`throws`) Extraction" and "Extract enclosing `if (...)` condition text as
+  `when`."
+  `crates/fnscope-parser/src/java/body.rs:783-795` — `enclosing_condition`
+  returns `normalize_line(&node_text(condition, source))` unchanged;
+  `:1016-1018` — comment "Spec section 4 step 4 keeps the enclosing `if (...)`
+  text verbatim; rust/python/typescript adapters report `when` the same way"
+  and `assert_eq!(analysis.errors[0].when, "(text.isEmpty())")`; `:1037` —
+  `"explicit throw"` fallback.
+  `tests/fixtures/java_app/README.md:35-40` — `when` `(text.isEmpty())` and
+  `(text.isBlank())`.
+  Ledger iteration 34 (`.reports/goal-build-fnscope.md:326-331`) — "Java
+  `when` had parentheses while the test expected none (likely test bug,
+  pending sibling verification)" and "sent exact outputs to J31 and J30 with
+  an explicit code-vs-test decision request for Java".
+  `docs/ethics/lessons.md:51-70` (L2) — triage CODE vs TEST against the
+  locked contract before editing.
+
+ALIGNMENT
+  Iteration 35's green gate (130 tests) proves the corrected assertion agrees
+  with the shipped extraction. The same rule keeps error facts stable across
+  all adapters without a schema change.
+
+
+DECISION 8 — Lifetime compile failures go back to the owning jobs
+-----------------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  The seven E0597 iterator-temporary errors found at merge were sent back to
+  J30, J31 and J32 with exact file:line locations. The orchestrator made no
+  code edits in another agent's files and re-gated only after the owners
+  returned fixes.
+
+WHY
+  L1 requires bounded write windows and a compile window after every batch;
+  the owner of a file is the only agent that edits it. Fixing another agent's
+  code in the integration worktree would create an orphan edit and hide which
+  job owned the defect.
+
+SOURCE
+  Ledger iteration 33 (`.reports/goal-build-fnscope.md:317-324`) —
+  "`ADAPTER_GATE_STATUS=101`; seven E0597 iterator-temporary errors
+  (c_lang/body.rs 207,398,881; cpp/body.rs 190,201; java/body.rs 211,445).
+  L1 class again." and "Pivot: exact compiler locations sent back to
+  J30/J31/J32; no orchestrator code edits."
+  Iteration 34 (`:325-331`) — re-merged fixes; two remaining assertion
+  failures also routed back to the owners.
+  `docs/ethics/lessons.md:29-49` (L1) — "Parallel write windows are bounded.
+  A compile window follows every batch."
+  `AGENTS.md`, "Every piece of code has an origin" and "Parallel work rule".
+
+ALIGNMENT
+  Iteration 35: "Java/C/C++ gate green (130 tests)" after the owners' fixes.
+  No gate was made green by editing another job's file or by hiding a failure.
+
+
+DECISION 9 — One registration job owns the shared files
+--------------------------------------------------------
+LOCKED ANSWER [agent decision]
+  J30/J31/J32 own only their adapter module, contract doc and fixture. J34
+  alone edits the shared files: root and parser `Cargo.toml`, `Cargo.lock`,
+  `crates/fnscope-parser/src/lib.rs`, `crates/fnscope-parser/src/adapter.rs`
+  and the default globs in `crates/fnscope-core/src/scan.rs`. Registration is
+  never done inside an adapter worktree.
+
+WHY
+  Concurrent writes to `adapter.rs` or a manifest would overwrite one
+  another. Deferring registration also keeps each adapter reviewable on its
+  own and lets one gate verify the combined wiring and the lockfile update.
+
+SOURCE
+  Ledger iteration 31 (`.reports/goal-build-fnscope.md:307`) — "Pivot: single
+  registration job after review, as before."
+  Iteration 32 (`:314`) — "one registration job owns the shared registry
+  files so parallel jobs never collide."
+  Review `.reports/reviews/J30-J32.md:65-90` — "These are unowned files. No
+  agent edited them" (`:67`), the Cargo.lock note at `:69`, and numbered
+  registration notes for Java `:71-76`, C `:78-83`, C++ `:85-90`.
+  `docs/contract/adapters/java.md:8-10`, `c.md:8-10`, `cpp.md:5-6` — each
+  adapter states it is not registered globally by this job.
+  `git show --stat 5408cad` — the shared files and all adapters land in the
+  same committed batch.
+
+ALIGNMENT
+  L1's bounded write windows and the commit rule "one logical change = one
+  commit" (`AGENTS.md`). Iteration 35's 8-language mixed scan is the evidence
+  that the single registration wired all three without dangling edges.
+
+
+EVIDENCE LIMITS
+---------------
+- No verbatim user Q&A exists for this pack beyond the delegated authority
+  quoted at the top and the J51 brief sentence quoted there. The pack was
+  reconstructed after the fact; every answer above is an [agent decision].
+- No contemporary pre-impl simulation artifact survives. The archived
+  `simulate-pre.reconstructed.sh` is an explicitly labelled design-time
+  placeholder; `simulate.sh` is the canonical post-impl simulation written
+  from the shipped fixture facts.
+- "PASS" in `.reports/reviews/J30-J32.md:2` means no defect found by source
+  audit; the review explicitly says it ran no cargo (`:94`). The compile
+  and test evidence is the orchestrator gate in ledger iterations 33-35.
+- The C doc-description `*/` leak and the Java `when` assertion in iteration
+  34 are recorded as they appear in the ledger; no test names or quotes are
+  invented for them.
+- This file does not claim that `javac`, `cc` or a C++ executable was run by
+  this reconstruction. The fixture READMEs describe their runtime behaviour
+  as documentation, and the gate evidence is the ledger.

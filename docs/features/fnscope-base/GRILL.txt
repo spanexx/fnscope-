@@ -1,6 +1,11 @@
 fnscope - GRILL.txt (requirements lock)
 ======================================
 
+Status: Locked
+Decisions by: agent (delegated by Victor, 2026-11-25)
+Human gates waived by user, 2026-11-26 — "It's okay, you don't need a human approval. You can do it, but I just want you to document your decisions and why you made the decisions as you go."
+Carrier: main ledger iteration 46, `.reports/goal-build-fnscope.md:422` (verbatim from the user's message; that ledger addition is newer than this worktree's committed snapshot, which ends at iteration 43).
+
 This is a plain-text requirements lock for the `fnscope-base` feature.
 It records what the user asked, in the user's own words where those words are
 available, and the answer that was locked for the build. It exists so a later
@@ -154,3 +159,170 @@ that same report:
   "Pipeline: direct (delegated authority; spec is the locked requirement source)."
 
   - from `.reports/goal-build-fnscope.md`, line 16.
+
+
+## Reconstructed decision record (written 2026-11-26)
+
+This section is a reconstruction, not a contemporary transcript. The decisions
+below were made during iterations 1-14 of the base build under goal-skill
+delegated authority and were written into `.reports/goal-build-fnscope.md` at
+the time. This pack restates them with the WHY and the SOURCE so a later agent
+can read the reason without rebuilding it from memory. Every answer is an
+`[agent decision]` because the user removed the question loop. The ids R1-R6
+are restatement labels for this section; they are not drift ids (those live in
+`docs/drift.md`) and they do not extend the D1-D5 list above.
+
+Verbatim user prompts that are actually visible in this repo (quoted, never
+answered):
+
+  "Agent Execution Prompt: Build fnscope ... i would prefer you use RUST language to develop this. ask me no questions make all decisions yourself"
+    -- this file, lines 21-23 (carried in the J10 job brief)
+
+  "break this project down into very many pieces and make sure you are the orchestrator rent sub agents to do all task and you review and criticize. make sure to guide them into creating the best fnscope"
+    -- this file, lines 58-60 (carried in the J10 job brief)
+
+  "do not use cline one   use the sub agents you have in this opencode"
+    -- this file, lines 79-84 (the three spaces are in the source text)
+
+EVIDENCE LIMIT - do not treat the next item as a verbatim quote. The J47 brief
+paraphrases a later user instruction as "no human approval needed ... document
+your decisions and why as you go". A full-tree grep on 2026-11-26 found no such
+sentence in any committed file in this worktree; neither that sentence nor a
+ledger citation for it exists here. It is recorded in `## Human gates` below as
+a brief paraphrase, never as a ledger fact. This follows the "Evidence limits"
+pattern in `docs/ethics/lessons.md:254-269`, which marks unfindable brief
+details instead of quoting them as evidence.
+  Update 2026-11-26 (J55 F1): the main ledger iteration 46, `.reports/goal-build-fnscope.md:422`, now records the full sentence verbatim from the user's message; that ledger is newer than this worktree's committed copy (which ends at iteration 43), so the grep statement above remains true of this worktree only and the header now cites the carrier.
+
+R1 [agent decision] - Rust instead of Node/TypeScript and the spec's ts-morph.
+  DECISION: build the binary in Rust with tree-sitter, tree-sitter-typescript
+  and tree-sitter-javascript; keep Node at build time only for the UI bundle.
+  WHY: the user asked for Rust and removed the question loop; tree-sitter gives
+  the same deterministic AST truth as ts-morph, and a self-contained binary
+  satisfies the no-runtime-Node requirement.
+  SOURCE: this file line 23 (verbatim request); `.reports/goal-build-fnscope.md`
+  line 21 (D1, "Source: user instruction") and lines 4-14 (outcome and
+  acceptance evidence); PRD-TRD.md lines 21-38 and 162-171.
+  ALIGNMENT: serves the locked outcome at ledger line 4 and acceptance evidence
+  2 and 5 at ledger lines 7 and 10 - a schema-valid graph manifest and a binary
+  that embeds the UI with no Node requirement at runtime.
+
+R2 [agent decision] - the build and test lane is WSL Debian.
+  DECISION: compile, test and run fmt in WSL Debian (Rust 1.99.1, gcc 14.2.0)
+  over the same tree mounted from Windows; Windows is used to run the built
+  binary and `curl.exe`, not to build.
+  WHY: the iteration-1 audit found rustup on Windows with no PATH entry and no
+  C compiler, while WSL had the working toolchain.
+  SOURCE: ledger line 22 (D2, "Source: environment audit"), lines 52-58
+  (iteration 1 audit and `cargo search` proof), lines 108-114 (iteration 8:
+  native Node 24 installed in WSL and `CARGO_TEST_STATUS=0`).
+  ALIGNMENT: makes evidence 1 (`cargo test --workspace`, ledger line 6) and
+  evidence 4 (`curl.exe` against the served UI from Windows, ledger line 9)
+  both reproducible in this environment.
+
+R3 [agent decision] - subagent orchestration; worktree isolation came later.
+  DECISION: decompose into eleven jobs J01-J11 in four waves, each on a
+  disjoint file set, with no agent running cargo and the orchestrator owning
+  every gate and review. During iterations 1-14 this happened in one
+  workbench: the ledger states "Worktree: none — repo starts empty, main is
+  the workbench by explicit user instruction to build here" (line 17).
+  Per-job worktrees and merge-to-main were introduced only at iteration 16
+  after the user expanded the goal and explicitly authorised isolation and
+  merging (ledger lines 178-188).
+  WHY: "very many pieces" is read as small, single-owner jobs; "you are the
+  orchestrator ... you review and criticize" (this file line 60) rules out
+  self-approval. Keeping cargo with the orchestrator avoids parallel write
+  contention, which iteration 3 identified as the cause of seven compiler
+  errors (ledger lines 68-74).
+  SOURCE: this file lines 58-76; ledger lines 27-48 (decomposition), 60-66
+  (iteration 2 dispatch and pivot), 17, 178-188; AGENTS.md "Parallel work
+  rule" and "Every piece of code has an origin".
+  ALIGNMENT: every merge reaches acceptance evidence 1-5 only after an
+  orchestrator gate (ledger lines 156-168), and no edit is orphaned.
+
+R4 [agent decision] - one root Cargo workspace, six crates.
+  DECISION: a single root workspace holding `fnscope-model`, `fnscope-parser`,
+  `fnscope-core`, `fnscope-enrich`, `fnscope-server` and `fnscope-cli`, with
+  `ui/`, fixtures, scripts and docs outside the crate tree.
+  WHY: "Modular or it does not merge" (AGENTS.md); one crate per job gives a
+  clean disjoint-file boundary, and the schema crate is the stable JSON
+  contract every other crate depends on.
+  SOURCE: ledger lines 60-62 (iteration 2 wrote the workspace manifest and
+  compilable stubs) and line 70 (iteration 3 checked the five stable crates);
+  IMPL.md lines 18-53 (job-to-crate map); README.md lines 126-134
+  (architecture map); PRD-TRD.md lines 88-108 (contract ownership).
+  ALIGNMENT: separates the concerns behind evidence 2 (manifest shape),
+  evidence 3 (enrich cache) and evidence 5 (embedded UI) so each can be
+  gated on its own before the full workspace suite.
+
+R5 [agent decision] - docs are committed in reviewed batches.
+  DECISION: write the origin docs first (GRILL, PRD-TRD, IMPL, drift, ethics),
+  then commit documentation and code as explicit, separately reviewed batches
+  with staged paths. At the close of iteration 14 no commit was made: the
+  ledger records "Remaining human gate: no commit was made (goal skill treats
+  the commit go as a human gate)" (line 168). The first recorded commits of
+  the base build are `ff793af` ("docs: record verified base build and Rust
+  addendum plan") and `4c26063` ("docs: turn build mistakes into enforceable
+  ethics and workflows") at ledger lines 190-192.
+  WHY: the repo requires a durable origin for every change and one logical
+  change per commit; a gate verdict is only useful if it can be tied to a
+  recorded revision rather than to an agent's claim.
+  SOURCE: ledger lines 168, 190-192, 214-220 (`a961c53`), 222-224 (`ec2e8b0`),
+  395-397 (`fbb10f9`); AGENTS.md "Commit and worktree culture". Caveat:
+  `docs/STATUS.md:375-376` records that these early hashes were superseded by
+  a later history rewrite (`4c26063` is no longer present; the culture batch
+  appears as `fa5419e`), so hashes are cited as recorded in the ledger at the
+  time, not as current object names.
+  ALIGNMENT: acceptance verdicts in VERIFY.md stay auditable; the docs are the
+  evidence that decisions, drift and gates were recorded before integration.
+
+R6 [agent decision] - reviewer failures loop back to the owning job.
+  DECISION: a failed gate or review is returned to the job that wrote the
+  files, with the exact command and output; no job self-approves and no test is
+  bent to pass without a contract check.
+  WHY: "you review and criticize ... the best fnscope" (this file line 60).
+  Iteration 10 proved a green unit suite is not enough: "`cargo test
+  --workspace` still 0 with 71+ tests" while the browser audit found three
+  real UI/API bugs (ledger lines 124-130).
+  SOURCE: ledger lines 68-105 (iterations 3-7: compiler, assertion and Node
+  path failures routed to J02/J03/J01/J04/J06), 124-153 (iterations 10-13:
+  browser findings routed to J08/J06), 238-244 (iteration 23: a reviewer PASS
+  that did not compile), 262-267 (iteration 26: review FAIL with 10 findings);
+  `docs/ethics/lessons.md` L1-L5 and L11; IMPL.md lines 60-65.
+  ALIGNMENT: all five acceptance items reached their recorded pass at
+  iteration 14 only after these loops (ledger lines 156-168); the loops are
+  why the verdict in VERIFY.md is evidence rather than an assertion.
+
+
+## Human gates (note added 2026-11-26)
+
+The J47 brief paraphrases a later user instruction as "no human approval
+needed ... document your decisions and why as you go". As recorded above under
+EVIDENCE LIMIT, that exact sentence is not present in any committed file in
+this worktree and no ledger line can be cited for it. It is reported here as a
+paraphrase carried in the job brief, not as a verbatim user quote and not as a
+ledger fact.
+  Follow-up 2026-11-26: the verbatim waiver sentence and its carrier (main ledger iteration 46, `.reports/goal-build-fnscope.md:422`) are now recorded in the headers at the top of this file; the statement above describes only this worktree's committed snapshot.
+
+What the ledger does verify about approval and gates:
+
+- Delegated authority is verbatim at `.reports/goal-build-fnscope.md` line 12:
+  "ask me no questions make all decisions yourself".
+- The commit go was still treated as a human gate at the close of the base
+  build: line 168, "Remaining human gate: no commit was made (goal skill treats
+  the commit go as a human gate)".
+- Worktree isolation and merging to main were explicitly authorised by the
+  user later: line 183, "Authority: delegated; user explicitly authorized
+  worktree isolation and merging to main".
+- The user then took the delivery step himself: iteration 43, lines 395-397,
+  records the docs commit `fbb10f9` and `git push -u origin main` ->
+  `PUSH_STATUS=0`.
+
+Recorded interpretation: human approval before acting was waived for this
+repo's ongoing work, so decisions were made by the agent and documented with
+WHY and SOURCE (R1-R6 above). It was not a silent bypass. Verification gates
+were still executed by the orchestrator and their real commands and verdicts
+were written down - `CARGO_TEST_STATUS=0`, `FMT_STATUS=0`, `ALL_TESTS_OK`,
+`ENRICH_E2E_OK` and the browser re-audit at ledger lines 156-168 - and a gap
+between a locked doc and the code was written to `docs/drift.md` before the
+next edit. Waiver of approval is not waiver of evidence.
