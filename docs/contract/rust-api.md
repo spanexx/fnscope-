@@ -212,3 +212,93 @@ Default out `.fnscope`, default port 4310. `open` scans first, then serves; watc
 ## 7. Directories owned by orchestrator (do not edit)
 
 - `Cargo.toml` (workspace), `docs/contract/rust-api.md`, `ui/dist/index.html`, `ui/dist/app.js`, `ui/dist/app.css` (placeholders), `crates/fnscope-parser/src/types.rs`, `crates/fnscope-parser/src/lib.rs`.
+
+## 8. Workspace scopes (additive, 2026-11-26)
+
+This section is additive. Sections 1-7 and every existing route/type remain unchanged.
+
+```rust
+pub const DEFAULT_SCOPE: &str = "default";
+
+#[serde(rename_all = "camelCase")]
+pub struct ScopeConfig {
+    pub id: String,
+    pub label: String,                 // serde default
+    pub note: String,                  // serde default
+    pub scan_root: std::path::PathBuf, // serde default
+    pub display_root: String,          // serde default; relative
+    pub manifest_path: std::path::PathBuf,
+    pub default_function_id: Option<String>, // serde default
+    pub invoke_mode: Option<InvokeMode>,     // serde default
+}
+impl ScopeConfig {
+    pub fn new(id: impl Into<String>, scan_root: impl Into<PathBuf>,
+               manifest_path: impl Into<PathBuf>) -> Self;
+}
+
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceConfig {
+    pub scopes: Vec<ScopeConfig>,      // serde default
+    pub default_scope: String,
+    pub bind: std::net::SocketAddr,
+    pub invoke_mode: InvokeMode,
+}
+impl WorkspaceConfig {
+    pub fn single(manifest_path: PathBuf, bind: SocketAddr,
+                  invoke_mode: InvokeMode) -> Self;
+}
+
+#[serde(rename_all = "camelCase")]
+pub struct ScopeDescriptor {
+    pub id: String,
+    pub label: String,
+    pub note: String,
+    pub root_dir: String,              // relative; never an absolute path
+    pub generated_at: Option<String>,  // JSON null when unavailable
+    pub function_count: usize,
+    pub file_count: usize,
+    pub languages: Vec<LanguageCount>,
+    pub available: bool,
+    pub error: Option<String>,
+    pub default_function_id: Option<String>,
+    pub invoke_mode: InvokeMode,
+}
+
+#[serde(rename_all = "camelCase")]
+pub struct LanguageCount { pub name: String, pub count: usize }
+
+#[serde(rename_all = "camelCase")]
+pub struct ScopeList { pub scopes: Vec<ScopeDescriptor>, pub default_scope: String }
+
+pub fn is_valid_scope_id(id: &str) -> bool; // [a-z0-9][a-z0-9-]*, max 64 bytes
+pub fn validate_workspace_config(config: &WorkspaceConfig) -> Result<(), String>;
+pub fn workspace_router(config: WorkspaceConfig) -> axum::Router;
+pub async fn serve_workspace(config: WorkspaceConfig) -> anyhow::Result<()>;
+```
+
+`InvokeMode` keeps its variants and gains `Serialize`/`Deserialize` with lowercase wire
+values `"simulate"` and `"node"`.
+
+Routes:
+
+- `GET /api/scopes` -> `ScopeList`. A missing/corrupt scope is `available:false` with an
+  `error`, and does not fail the other scopes. `rootDir` is the configured relative display
+  root.
+- `GET /api/scopes/{id}/fn-graph.json` -> the existing `FnGraph` schema. Unknown scope 404;
+  missing/corrupt manifest 500.
+- `POST /api/scopes/{id}/invoke` -> the existing `InvokeRequest` -> `InvokeResponse` schema.
+  Unknown scope 404; unknown `fnId` inside a valid scope returns HTTP 200 with
+  `{ok:false,error:"..."}` and never searches another scope.
+- `GET /api/fn-graph.json` and `POST /api/invoke` remain and resolve the workspace
+  `defaultScope`. With no workspace configuration they serve the single `default` scope.
+
+Behavioral invariants:
+
+- `FnGraph`, `FnRecord`, `InvokeRequest`, `InvokeResponse`, `TraceEntry` and `schemaVersion`
+  are unchanged.
+- The scope id is a registry key, never joined into a filesystem path; Node module paths are
+  canonicalized and contained by the scope root.
+- The server binds loopback by default, adds no CORS, rejects foreign Host/Origin, sets a CSP
+  for embedded assets, and bounds manifest/request size and Node concurrency.
+- The compatibility routes let an old UI keep working; the new UI falls back to
+  `/api/fn-graph.json` when `/api/scopes` is absent.
