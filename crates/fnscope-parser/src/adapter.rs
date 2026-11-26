@@ -10,6 +10,8 @@ use std::collections::BTreeMap;
 
 use fnscope_model::ReturnShape;
 
+use crate::golang::GoAdapter;
+use crate::python::PythonAdapter;
 use crate::rust::RustAdapter;
 use crate::types::{BodyAnalysis, DiscoveredFn, Lang};
 use crate::typescript::TypeScriptAdapter;
@@ -61,7 +63,7 @@ impl Registry {
         Self::default()
     }
 
-    /// Create the built-in registry: TypeScript, TSX, JavaScript, JSX and Rust.
+    /// Create the built-in registry: TypeScript, TSX, JavaScript, JSX, Rust, Python and Go.
     pub fn with_builtin_adapters() -> Self {
         let mut registry = Self::new();
         registry.register(Box::new(TypeScriptAdapter::new(Lang::TypeScript)));
@@ -69,6 +71,8 @@ impl Registry {
         registry.register(Box::new(TypeScriptAdapter::new(Lang::JavaScript)));
         registry.register(Box::new(TypeScriptAdapter::new(Lang::Jsx)));
         registry.register(Box::new(RustAdapter));
+        registry.register(Box::new(PythonAdapter::new()));
+        registry.register(Box::new(GoAdapter::new()));
         registry
     }
 
@@ -109,6 +113,8 @@ mod tests {
             ("js", "javascript"),
             ("jsx", "jsx"),
             ("rs", "rust"),
+            ("py", "python"),
+            ("go", "go"),
         ] {
             let adapter = registry
                 .for_extension(extension)
@@ -121,7 +127,7 @@ mod tests {
     #[test]
     fn unregistered_extension_returns_none() {
         let registry = registry();
-        assert!(registry.for_extension("py").is_none());
+        assert!(registry.for_extension("zig").is_none());
         assert!(registry.for_extension("").is_none());
         assert_eq!(
             registry.for_extension("RS").map(|adapter| adapter.id()),

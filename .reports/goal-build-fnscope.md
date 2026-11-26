@@ -243,6 +243,54 @@ Failure class: L10 recurrence — byte-level normalization with `sed 's/\r$//'` 
 Pivot: D-4 drift appended before the fix; J21 restoring identifiers with `tr -d '\r'` verification; J22 to re-review with a new semantic-sanity checklist item; J20 writing L11. No merge until a real gate passes.
 Next: re-gate, fresh reviewer, commit adapter refactor only after PASS.
 
+### 24 — 2026-11-26
+Action: Closed D-4 with the real gate/re-review evidence and committed the adapter-registry refactor; began polyglot language batches. Confirmed grammar crates available (python 0.25, go 0.25, java 0.23.5, c 0.24.2, cpp 0.23.4). Created isolated worktrees for Python and Go and dispatched J23/J24 with the review notice, checklist, semantic-sanity rule and `tr`-only CR normalization.
+Verification: `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0`, 101 tests (parser 44); J22 re-review `Verdict (re-review): PASS` with 0 findings; `git log --oneline` -> `a6f5cde refactor: pluggable language adapter registry`.
+Verdict: pass for the refactor; language batches in progress.
+Failure class: none in this iteration.
+Pivot: per-language adapters are registered by a separate orchestrator-delegated job after review, so two worktrees never edit the registry file.
+Next: independent review of J23/J24, register adapters in one job, gate, commit, then Java/C/C++ and remaining languages.
+
+### 25 — 2026-11-26
+Action: J23 (Python) and J24 (Go) adapters completed in isolated worktrees; orchestrator dispatched J25, one independent reviewer for both, with the L11 semantic-sanity item.
+Verification reported by implementers (NOT trusted until review+gate): Python 10 tests, Go 16 tests, both adapters implement all six trait methods, CR=0 via `tr`, python AST/go vet syntax-only checks. Both flagged the exact registration edits needed, including the `adapter.rs:124` test that will fail once `py` is registered.
+Verdict: pending independent review
+Failure class: none recorded yet
+Pivot: registration of both adapters deferred to one separate job so the two worktrees never edit the same registry file.
+Next: read `.reports/reviews/J23-J24.md`, dispatch registration job, merge, gate, commit.
+
+### 26 — 2026-11-26
+Action: Independent review J25 returned FAIL on the Python/Go batch with 10 findings. Routed F1/F2/F4 back to J23, F9/F10 (L11-class truncated tokens in a culture doc) back to J20, and dispatched J26 in a fresh worktree for the exact registration edits (F3/F5/F6/F7/F8). Go's own source had no defects.
+Verification: `.reports/reviews/J23-J24.md` records each finding with path:line and explicitly states a format check is not compile evidence.
+Verdict: fail (review), fixes in progress
+Failure class: wrong argument type (9 E0308 sites) + stale docs + registration blockers.
+Pivot: reviewer process caught a blocker before merge; no code merged from either adapter worktree.
+Next: integrate J23/J20/J26, gate, mixed polyglot scan, fresh review if needed, commit.
+
+### 27 — 2026-11-26
+Action: Merged J23/J24/J26 worktrees with `cp` only and `tr`-verified CR=0 on 23 files; ran the real compile gate.
+Verification: `cargo test --workspace` -> `ADAPTER_GATE_STATUS=101`; six E0597 iterator-temporary errors (4 in Python, 2 in Go) plus one `unused_mut` warning in the TypeScript adapter. Cargo.lock correctly gained tree-sitter-python/go 0.25.
+Verdict: fail (borrow lifetimes, L1 class)
+Failure class: iterator temporary outliving cursor at tail expressions.
+Pivot: sent exact lines back to J23 and J24; J21 cleaning a stale adapter-api doc and the unused-mut warning.
+Next: re-gate, mixed polyglot scan, culture check, commit.
+
+### 28 — 2026-11-26
+Action: Re-merged corrected Python/Go files, re-gate compiled cleanly, but 9 adapter tests failed (7 Go, 2 Python).
+Verification: `ADAPTER_GATE_STATUS=101`; parser 61 passed / 9 failed with exact assertions logged in `/tmp/fnscope-adapter-gate.log`. J21 removed a stale doc claim and an unused `mut`; it also flagged the same warning in three sibling adapters.
+Verdict: fail (logic tests)
+Failure class: unexecuted delegated tests now exercising real behavior; possible CODE-vs-TEST contract mismatches.
+Pivot: dispatched J27 read-only triage to decide CODE vs TEST per failure with contract citations before any edits (per `docs/workflows/test-failure-triage.md`).
+Next: route triage decisions to J23/J24, re-gate, mixed polyglot scan, commit.
+
+### 29 — 2026-11-26
+Action: Read-only triage J27 decided all nine failures with contract citations (CODE 7, TEST 1, BOTH 1); root causes were grammar wrapper nodes (`statement_list`, `field_declaration_list`, `expression_statement`) plus one contract-breaking test expectation. Routed fixes to J23/J24; appended D-5 for the Go adapter-doc/step-kind drift.
+Verification: `.reports/reviews/lang-batch-triage.md` quotes spec section 4 step 3 and the locked `const tokens = tokenize(...)` schema example for the Call-vs-Transform decisions.
+Verdict: in progress
+Failure class: grammar-version AST wrapper mismatch; test expectation contradicting locked spec.
+Pivot: no blind "make the test pass" — each side changed only where the contract demands.
+Next: re-merge, gate, mixed polyglot scan, culture check, commit.
+
 ### Review notes (orchestrator)
 - J01 (model) reviewed: exact camelCase serde names, aggregated `validate`, 10 tests. One accepted deviation: uppercase hex accepted in `astHash` (still 64 hex chars). No conflict.
 - J09 (fixture) reviewed: 8 core functions, explicit `.ts` imports, `dryRun` path for safe invoke.

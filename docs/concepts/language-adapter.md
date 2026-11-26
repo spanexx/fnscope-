@@ -1,4 +1,4 @@
-# Concept — Language adapte
+# Concept — Language adapter
 
 ## The problem this concept solves
 
@@ -51,7 +51,7 @@ the graph, or write the manifest.
 
 - **File walk** — globset discovery with `ScanOptions.includes` / `excludes`,
   including the `target/` and `node_modules` style exclusions.
-- **Ids** — `make_id(relative_path, qualified_name)`, stable and unique pe
+- **Ids** — `make_id(relative_path, qualified_name)`, stable and unique per
   file plus function.
 - **Hash** — `ast_hash(source)` from `normalize_source`.
 - **Graph edges** — the name-to-id map that turns `callsFnId` into a resolved
@@ -66,7 +66,7 @@ branches.
 
 ## The invariant
 
-Adding a language changes only the adapter registry: register the new adapte
+Adding a language changes only the adapter registry: register the new adapter
 and add its adapter crate, its fixtures and its tests. A diff that touches
 `fnscope-core`'s graph builder, the schema, the enricher, or `ui/` has broken
 the invariant and must stop for review. Record the mismatch in `docs/drift.md`
@@ -79,7 +79,7 @@ signature and parameter extraction, step construction, error extraction, type
 index entries, callee names, and purity/permissions mapping; return exactly the
 contract types (`DiscoveredFn`, `BodyAnalysis`, `Step`, `ErrorSpec`,
 `ReturnShape`) so core stays unaware of the syntax; register the adapter in the
-single adapter registry with its file extensions; add one unit test pe
+single adapter registry with its file extensions; add one unit test per
 extractor category and one integration test that scans a fixture of that
 language into a valid `FnGraph` with resolved `calledBy` edges; add a mixed
 polyglot fixture that produces one manifest containing both the new language
@@ -92,7 +92,7 @@ instead of adding a branch.
 
 Do not write code shaped like "if the file ends in `.rs`, do Rust discovery;
 else if `.py`, do Python discovery; else do TypeScript" inside the scanner.
-That is the iteration 15 pattern scaled up: each new language adds anothe
+That is the iteration 15 pattern scaled up: each new language adds another
 branch to the file walk, another branch to discovery, another branch to the
 body analysis and another test matrix in core. It makes core the owner of every
 language, breaks disjoint file ownership, and means a change for one language
@@ -100,13 +100,18 @@ can regress another. The same warning applies to `Lang` as a growing enum with
 `match` statements scattered across crates: a registry of adapters is the
 seam, not a wider enum.
 
-## Current contract status (read before implementing)
+## Current contract status (the locked seam)
 
-The locked contract in `docs/contract/rust-api.md` still declares
-`Lang { TypeScript, Tsx, JavaScript, Jsx }` and the parser entry points
-`discover::discover(lang, source, relative_path)` and
-`body::analyze(found, lang, source, known_names)`. It has no adapter trait o
-registry. Moving to the registry is therefore an architecture change to a
-locked boundary: write the decision down before editing the contract or shared
-types. Treat this section as a status note, not as permission to change the
-contract silently.
+The adapter contract is `docs/contract/adapter-api.md` (merged in a6f5cde). It
+records `LanguageAdapter` and `Registry` in
+`crates/fnscope-parser/src/adapter.rs`, the compatibility delegates `discover`,
+`analyze`, `collect_types` and `resolve_return_fields`, and the single core
+injection seam `fnscope_core::scan::scan_with_registry`. Adding a language now
+means implementing the trait, registering it and passing the registry to
+`scan_with_registry` — no edit to the graph builder, schema, enricher or UI.
+
+`docs/contract/rust-api.md` remains the locked schema contract. `Lang` is still
+public in `crates/fnscope-parser/src/types.rs:7-15`, but only for compatibility
+with the original entry points; core no longer imports or matches on it. The
+old free functions are thin delegates to the built-in registry, so this concept
+and the adapter contract describe the same seam, not two competing designs.

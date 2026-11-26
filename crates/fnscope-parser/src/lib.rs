@@ -4,6 +4,8 @@
 pub mod adapter;
 pub mod body;
 pub mod discover;
+pub mod golang;
+pub mod python;
 pub mod rust;
 pub mod types;
 pub mod typescript;

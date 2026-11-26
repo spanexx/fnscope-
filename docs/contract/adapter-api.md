@@ -23,7 +23,7 @@ pub struct Registry { /* private: Vec<Box<dyn LanguageAdapter>> */ }
 
 impl Registry {
     pub fn new() -> Self;                              // empty registry
-    pub fn with_builtin_adapters() -> Self;            // TS, TSX, JS, JSX, Rust
+    pub fn with_builtin_adapters() -> Self;            // TS, TSX, JS, JSX, Rust, Python, Go
     pub fn register(&mut self, adapter: Box<dyn LanguageAdapter>);
     pub fn for_extension(&self, ext: &str) -> Option<&dyn LanguageAdapter>;
 }
@@ -34,10 +34,11 @@ pub fn registry() -> Registry; // built-in registry for callers that do not inje
 `for_extension` trims a leading dot, lowercases the suffix, and returns the
 first registered adapter that claims it. Registration order is stable.
 
-The five built-in registrations are four `TypeScriptAdapter` instances
-(one per `Lang::{TypeScript, Tsx, JavaScript, Jsx}`) and one `RustAdapter`.
-Each `TypeScriptAdapter` claims exactly one suffix so the original grammar
-choice (TypeScript vs TSX vs JavaScript) is preserved byte-for-byte.
+The seven built-in registrations are four `TypeScriptAdapter` instances
+(one per `Lang::{TypeScript, Tsx, JavaScript, Jsx}`), one `RustAdapter`, one
+`PythonAdapter` (`.py`) and one `GoAdapter` (`.go`). Each `TypeScriptAdapter`
+claims exactly one suffix so the original grammar choice (TypeScript vs TSX vs
+JavaScript) is preserved byte-for-byte.
 
 `Lang` remains defined in `crates/fnscope-parser/src/types.rs` only so older
 callers keep compiling. It is an internal detail of the adapters:
@@ -61,7 +62,7 @@ in `crates/fnscope-parser/src/resolve.rs`.
 
 ## 3. Adjustments to the requested sketch, with reasons
 
-1. **Five built-in instances instead of one TS adapter claiming four suffixes.**
+1. **One TS adapter instance per suffix (four TS-family instances among seven built-ins).**
    `discover`/`analyze`/`collect_types` receive no path, so a single instance
    could not choose the TSX grammar for `.tsx` and the JavaScript grammar for
    `.jsx`. One instance per suffix preserves the pre-refactor grammar and
@@ -100,22 +101,25 @@ manifest assembly, `write_manifest` and `read_manifest` are untouched.
 
 ## 5. How to add a language
 
-1. Create a new crate (for example `fnscope-adapter-python`) that depends on
+1. Create a new crate (as was done for the now built-in `python` and `golang`
+   adapters, e.g. `fnscope-adapter-ruby` for the next language) that depends on
    `fnscope-parser` and `fnscope-model`. Implement `LanguageAdapter` for a
    struct that owns the language's extensions, discovery, signature/parameter
    extraction, steps, errors, type index entries, callee names and
    purity/permissions. Return the contract types unchanged.
-2. Register the adapter. Built-in adapters are added in
-   `Registry::with_builtin_adapters`; external callers call
-   `Registry::new()`, `register(Box::new(MyAdapter))` and pass it to
+2. Register the adapter. Python and Go joined TS/TSX/JS/JSX and Rust through the
+   same call in `Registry::with_builtin_adapters`; a future language becomes a
+   built-in by adding its `register(Box::new(MyAdapter::new()))` line there.
+   Callers that do not want a built-in call `Registry::new()`,
+   `register(Box::new(MyAdapter))` and pass the registry to
    `fnscope_core::scan::scan_with_registry`.
 3. Add unit tests for each extractor category beside the adapter code, and an
    integration test that scans a fixture of the new language into a valid
-   `FnGraph` with resolved `called_by` edges. Add a mixed polyglot fixture that
-   produces one manifest containing the new language and existing TS/JS
-   functions.
-4. Run `cargo test --workspace` and confirm the existing TS/JS gates are
-   unchanged.
+   `FnGraph` with resolved `called_by` edges. Add or extend a mixed polyglot
+   fixture so one manifest contains the new language and the existing TS/JS,
+   Rust, Python and Go functions.
+4. Run `cargo test --workspace` and confirm the existing TS/JS and other
+   language gates are unchanged.
 
 No edit to `fnscope-core`'s graph builder, `fnscope-model`, `fnscope-enrich`,
 `ui/`, `docs/contract/rust-api.md` or `docs/drift.md` is part of this recipe.
@@ -133,5 +137,8 @@ instead of adding a branch.
   body-analysis facts (`src/typescript/mod.rs`, `src/rust/mod.rs` tests), and
   every original TS/JS and Rust test module is retained verbatim in
   `src/discover.rs` and `src/body.rs`.
+
+This list is J21's original evidence; Python and Go were added later by
+following section 5, with their own tests and fixtures.
 
 Gates were not run by J21. Verdicts belong to the orchestrator.

@@ -48,6 +48,12 @@ D-4 closure requires: restore every truncated identifier, verify zero CR bytes w
 
 **D-4 -> Resolved 2026-11-26.** Verified by: re-merged J21's 13 files directly from the worktree with `cp` only (no sed); `tr -cd '\r' < file | wc -c` -> 0 for all 13 (`REMERGE_OK`); `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0` with 101 tests passing (parser 44); `.reports/reviews/J21.md` appended `## Re-review 2026-11-26` ending `Verdict (re-review): PASS` with 0 truncated-identifier hits and byte-identical worktree/main files (SHA256 13/13). J21 demonstrated that `rustfmt --check` passed on the corrupted copy while `cargo test` failed — recorded as L11. The original false PASS was not deleted.
 
+    D-5 | 2026-11-26 | fnscope_architecture_agent_build_spec.md section 4 step 3 and its schema example mark a variable declaration whose initializer calls a function (`const tokens = tokenize(...)`) as `kind: "call"` | `docs/contract/adapters/go.md:46` maps `short_var_declaration` unconditionally to Transform steps; the Go adapter's `step_kind()` followed that doc and produced wrong step kinds | Resolved | J24 + orchestrator
+
+D-5 closure requires correcting `docs/contract/adapters/go.md:46` and making Go's `step_kind()` return Call when the initializer invokes a function, then re-running the real gate.
+
+**D-5 -> Resolved 2026-11-26.** Verified by: J24 changed `golang/body.rs:328-334` so `short_var_declaration | var_declaration | assignment_statement` yields `Call` when `has_call()` is true, updated the test to expect `[Branch, Call, Call, Return]`, and corrected `docs/contract/adapters/go.md:46`. `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0`, 127 tests (parser 70) with 0 failures; the mixed polyglot scan reports 28 functions, 73 steps, 13 resolved calls and 0 dangling edges.
+
 ## Review rule (non-negotiable)
 
 When a review finds a gap between a locked doc and the code, append the entry

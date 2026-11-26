@@ -244,7 +244,7 @@ fn build_step(
     index: usize,
     error_sites: &[ThrowSite],
 ) -> (Step, Vec<String>) {
-    let mut facts = statement_facts(statement, source, found, error_sites);
+    let facts = statement_facts(statement, source, found, error_sites);
     let calls = collect_calls(statement, source);
     let callee_names: Vec<String> = calls.iter().map(|(_, name)| name.clone()).collect();
     let calls_fn_id = if facts.kind == StepKind::Call {

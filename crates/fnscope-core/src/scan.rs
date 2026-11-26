@@ -26,16 +26,20 @@ impl Default for ScanOptions {
     fn default() -> Self {
         Self {
             target_dir: PathBuf::from("."),
-            includes: vec!["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.rs"]
-                .into_iter()
-                .map(str::to_owned)
-                .collect(),
+            includes: vec![
+                "**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.rs", "**/*.py", "**/*.go",
+            ]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
             excludes: vec![
                 "**/node_modules/**",
                 "**/dist/**",
                 // Cargo's build directory holds generated sources, not authored code.
                 "**/target/**",
                 "**/.fnscope/**",
+                // Python's bytecode cache holds generated modules, not authored code.
+                "**/__pycache__/**",
                 "**/*.test.ts",
                 "**/*.test.tsx",
                 "**/*.spec.ts",
@@ -512,7 +516,7 @@ mod tests {
         assert_eq!(options.target_dir, PathBuf::from("."));
         assert_eq!(
             options.includes,
-            vec!["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.rs"]
+            vec!["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.rs", "**/*.py", "**/*.go",]
                 .into_iter()
                 .map(str::to_owned)
                 .collect::<Vec<_>>()
@@ -522,6 +526,7 @@ mod tests {
             "**/dist/**",
             "**/target/**",
             "**/.fnscope/**",
+            "**/__pycache__/**",
             "**/*.test.ts",
             "**/*.test.tsx",
             "**/*.spec.ts",
