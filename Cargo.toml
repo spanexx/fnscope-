@@ -1,0 +1,40 @@
+[workspace]
+members = [
+    "crates/fnscope-model",
+    "crates/fnscope-parser",
+    "crates/fnscope-core",
+    "crates/fnscope-enrich",
+    "crates/fnscope-server",
+    "crates/fnscope-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.90"
+
+[workspace.dependencies]
+anyhow = "1"
+axum = "0.8"
+chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
+globset = "0.4"
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tree-sitter = "0.25"
+tree-sitter-javascript = "0.25"
+tree-sitter-rust = "0.24"
+tree-sitter-typescript = "0.23"
+ureq = { version = "3", features = ["json"] }
+
+fnscope-model = { path = "crates/fnscope-model" }
+fnscope-parser = { path = "crates/fnscope-parser" }
+fnscope-core = { path = "crates/fnscope-core" }
+fnscope-enrich = { path = "crates/fnscope-enrich" }
+fnscope-server = { path = "crates/fnscope-server" }

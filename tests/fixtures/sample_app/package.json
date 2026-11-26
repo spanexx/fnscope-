@@ -1,0 +1,10 @@
+{
+  "name": "fnscope-sample-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Small TypeScript/JavaScript app used as fnscope's end-to-end extraction and invoke fixture.",
+  "engines": {
+    "node": ">=24"
+  }
+}

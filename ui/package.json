@@ -1,0 +1,20 @@
+{
+  "name": "fnscope-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static React function explorer whose built assets are embedded by the fnscope Rust server.",
+  "scripts": {
+    "build": "bash build.sh"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "esbuild": "^0.24.2",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
+  }
+}

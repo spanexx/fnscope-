@@ -1,0 +1,8 @@
+[package]
+name = "rust_app"
+version = "0.1.0"
+edition = "2021"
+description = "Small Rust crate used as fnscope's end-to-end Rust fixture."
+
+[lib]
+path = "src/lib.rs"
