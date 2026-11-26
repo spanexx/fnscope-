@@ -2,10 +2,345 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Match the explorer's dark shell on the very first paint, before React runs. */
-html,
-body,
-#root {
-  min-height: 100%;
-  background: #121212;
+/*
+ * Paper is the default palette; Graphite is the alternate. Every colour is an
+ * RGB triplet so Tailwind's rgb(var(--token) / alpha) utilities keep working.
+ * Fonts name IBM Plex first and fall back to the system stack until the
+ * orchestrator bundles the OFL font files; there are no external font requests.
+ */
+:root,
+:root[data-theme='paper'] {
+  color-scheme: light;
+  --bg: 243 239 230;
+  --surface: 250 247 240;
+  --panel: 255 253 248;
+  --raised: 237 231 218;
+  --wash: 231 224 210;
+  --active: 221 212 195;
+  --line: 213 205 189;
+  --line-strong: 185 175 156;
+  --ink: 27 26 23;
+  --muted: 94 89 79;
+  --faint: 111 104 92;
+  --accent: 178 58 30;
+  --accent-ink: 255 248 240;
+  --info: 47 107 128;
+  --ok: 62 107 74;
+  --warn: 138 90 31;
+  --err: 163 49 42;
+  --shadow: 27 26 23;
+  --ws-header-h: 52px;
+  --ws-footer-h: 28px;
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+}
+
+:root[data-theme='graphite'] {
+  color-scheme: dark;
+  --bg: 18 17 15;
+  --surface: 25 23 20;
+  --panel: 32 29 25;
+  --raised: 42 38 32;
+  --wash: 51 46 39;
+  --active: 62 56 47;
+  --line: 58 52 44;
+  --line-strong: 90 82 70;
+  --ink: 237 232 222;
+  --muted: 167 158 143;
+  --faint: 148 139 124;
+  --accent: 224 138 60;
+  --accent-ink: 26 21 16;
+  --info: 134 175 196;
+  --ok: 143 191 122;
+  --warn: 224 164 88;
+  --err: 224 120 104;
+  --shadow: 0 0 0;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: rgb(var(--bg));
+    color: rgb(var(--ink));
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  pre,
+  code,
+  kbd {
+    font-family: var(--font-mono);
+  }
+
+  ::selection {
+    background: rgb(var(--accent) / 0.18);
+    color: rgb(var(--ink));
+  }
+
+  :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid rgb(var(--accent) / 0.6);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--line-strong)) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--line-strong));
+    border: 2px solid rgb(var(--bg));
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--muted));
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+.ws-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
+}
+
+.ws-skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 80;
+  border: 1px solid rgb(var(--line-strong));
+  border-radius: 6px;
+  background: rgb(var(--panel));
+  padding: 8px 12px;
+  color: rgb(var(--ink));
+  font-size: 12px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.ws-skip-link:focus {
+  top: 8px;
+}
+
+.ws-topbar {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  height: var(--ws-header-h);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgb(var(--line));
+  background: rgb(var(--surface));
+  padding: 0 0.625rem;
+}
+
+.ws-body {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+}
+
+.ws-sidebar {
+  width: 270px;
+  flex: 0 0 270px;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid rgb(var(--line));
+  background: rgb(var(--surface));
+  transition: width 0.18s ease, flex-basis 0.18s ease, transform 0.18s ease;
+}
+
+.ws-sidebar[data-open='false'] {
+  width: 0;
+  flex-basis: 0;
+  border-right-width: 0;
+}
+
+.ws-sidebar-inner {
+  display: flex;
+  height: 100%;
+  width: 270px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ws-drawer {
+  width: 320px;
+  flex: 0 0 320px;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid rgb(var(--line));
+  background: rgb(var(--surface));
+}
+
+.ws-drawer[data-open='false'] {
+  display: none;
+}
+
+.ws-drawer-inner {
+  display: flex;
+  height: 100%;
+  width: 320px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ws-canvas {
+  min-width: 0;
+  flex: 1;
+  overflow-y: auto;
+  background: rgb(var(--bg));
+}
+
+.ws-canvas:focus {
+  outline: none;
+}
+
+.ws-provenance {
+  display: flex;
+  height: var(--ws-footer-h);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.75rem;
+  overflow: hidden;
+  border-top: 1px solid rgb(var(--line));
+  background: rgb(var(--surface));
+  padding: 0 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: rgb(var(--muted));
+  white-space: nowrap;
+}
+
+.ws-toasts {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  display: flex;
+  width: 320px;
+  max-width: calc(100vw - 2rem);
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.ws-backdrop {
+  position: fixed;
+  inset: var(--ws-header-h) 0 0;
+  z-index: 39;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  background: rgb(0 0 0 / 0.32);
+  cursor: pointer;
+}
+
+.ws-backdrop-drawer {
+  z-index: 45;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+mark {
+  border-radius: 2px;
+  background: rgb(var(--accent) / 0.14);
+  padding: 0 1px;
+  color: rgb(var(--accent));
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.toast {
+  animation: toast-in 0.18s ease-out;
+}
+
+@media (max-width: 1179px) {
+  .ws-drawer {
+    position: fixed;
+    right: 0;
+    top: var(--ws-header-h);
+    bottom: 0;
+    z-index: 46;
+    box-shadow: -20px 0 60px rgb(var(--shadow) / 0.18);
+  }
+}
+
+@media (max-width: 979px) {
+  .ws-sidebar {
+    position: fixed;
+    left: 0;
+    top: var(--ws-header-h);
+    bottom: 0;
+    z-index: 41;
+    box-shadow: 20px 0 60px rgb(var(--shadow) / 0.18);
+  }
+
+  .ws-sidebar[data-open='false'] {
+    width: 270px;
+    flex-basis: 270px;
+    transform: translateX(-100%);
+    border-right-width: 1px;
+  }
+
+  .ws-sidebar[data-open='true'] {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

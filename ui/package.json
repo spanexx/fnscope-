@@ -2,7 +2,7 @@
   "name": "fnscope-ui",
   "version": "1.0.0",
   "private": true,
-  "description": "Static React function explorer whose built assets are embedded by the fnscope Rust server.",
+  "description": "Static React workspace shell whose built assets are embedded by the fnscope Rust server.",
   "scripts": {
     "build": "bash build.sh",
     "check": "node scripts/check-ui.mjs",
