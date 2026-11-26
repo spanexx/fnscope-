@@ -23,6 +23,7 @@ find in those files. They are marked, not quoted as if they were evidence.
 | L7 | Iteration 12 — concern raised after the fix already landed | Verify against current code before escalating; cite the line | `docs/ethics/boundary-discipline.md` |
 | L8 | Iterations 13–14 — empty `trace` in Node-mode responses | A response field the UI renders is part of the API contract | `docs/workflows/boundary-contract-audit.md` |
 | L9 | Iteration 16 — polyglot expansion | A new language is a plugin, not a branch in the graph builder | `docs/concepts/language-adapter.md` |
+| L10 | Iteration 17 — `CR_COUNT=0` from `$"\r"`, a false green | Prove a check against a known positive and negative; put byte-level checks in a script, never inline across two shells | `scripts/check-culture.sh --self-test`, `docs/drift.md` D-3 |
 
 ## L1 — Seven compiler errors from parallel writes with no compile window
 
@@ -196,6 +197,30 @@ builder, schema, enricher or UI." Acceptance evidence (1)–(5) also requires
 only the adapter registry plus the new adapter and its fixtures/tests moved.
 If `fnscope-core`, the schema, the enricher or the UI changed, stop and treat
 it as an architecture drift. Full design: `docs/concepts/language-adapter.md`.
+
+## L10 — A false green from the wrong quote in a byte check
+
+**Incident (iteration 17).** The ledger records "CR_COUNT=0" after a CRLF
+regression in six copied ethics files was supposedly fixed. The count was taken
+with `$"\r"` — the locale-translation form, which is the two-character string
+backslash-r, not a carriage return. That expression cannot match a CR byte, so
+it reports zero even on a file that is full of them. A corrected detector,
+`grep -rlU $'\r' docs/ethics/*.md | wc -l`, found the gap; it printed `0` only
+after a real `sed -i 's/\r$//' docs/ethics/*.md` pass. The gap is D-3 in
+`docs/drift.md`, closed with the real command and output.
+
+**Rule.** A check must be proven against a known positive and a known negative
+before its green is trusted. Never hand-write a byte-level check inline across
+two shells: shell quoting changes the bytes the matcher sees. Put the check in a
+script and run that same script everywhere.
+
+**Checkable procedure.** Run `bash scripts/check-culture.sh --self-test` before
+trusting `CULTURE_OK`. It creates a known CRLF sample and a known LF sample in a
+temp directory, applies the exact detection expression to each, requires the
+CRLF sample to be detected and the LF sample not to be, and prints
+`CULTURE_SELFTEST_OK`. A detector that reports green on the CRLF positive
+control is broken by definition; do not use its output as evidence. Record the
+real command and its printout next to any green verdict.
 
 ## Evidence limits
 

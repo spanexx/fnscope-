@@ -36,6 +36,12 @@ D-2 resolution path: add `collect_types` / `resolve_return_fields` to `fnscope-p
 
 **D-2 -> Resolved 2026-11-25.** Verified by: `crates/fnscope-core/tests/scan.rs::scan_resolves_return_fields_from_project_wide_types` passes, and a real `fnscope scan tests/fixtures/sample_app` now reports `evaluate-grammar-role.returns.fields` with `roleId`, `label`, `confidence`, `intuition` from `src/types.ts`. J04 correctly rejected my suggested assertion that `roleId.type_ == "string"` — the fixture declares a string-literal union, and the test asserts the declared text instead.
 
+    D-3 | 2026-11-26 | .reports/goal-build-fnscope.md iteration 17 records "CR_COUNT=0" after LF normalization of the copied ethics docs | Six files still contain CR bytes: docs/ethics/cleanup.md:1, commenting.md:1, dev-lane.md:1, implementation.md:1, modular.md:1, origin.md:1. The earlier count used `$"\r"` (locale-translation form, a literal backslash-r) instead of `$'\r'`, so it could never match a CR byte and the green was false | Resolved | J20 + orchestrator
+
+D-3 gap: the ledger promised LF-only endings but the six copied files still carry CR bytes. The corrected detector is `grep -rlU $'\r'` with `-U` so CR is not stripped before matching. Closure requires normalizing all six files to LF, re-running the corrected expression to get a real zero, and recording that real command and output in a `Verified by:` note.
+
+**D-3 -> Resolved 2026-11-26.** Verified by: in WSL Debian, `sed -i 's/\r$//' docs/ethics/*.md`, then the corrected detector `grep -rlU $'\r' docs/ethics/*.md | wc -l` -> `0` with `grep_exit_status=1` (no matches). The byte-count check `tr -cd '\r' < "$f" | wc -c` returned `CR=0` for all ten files in `docs/ethics/*.md`. The earlier `CR_COUNT=0` stays recorded as a false green; the rule that came out of it is L10 in `docs/ethics/lessons.md`.
+
 ## Review rule (non-negotiable)
 
 When a review finds a gap between a locked doc and the code, append the entry

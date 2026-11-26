@@ -187,6 +187,38 @@ Failure class: none
 Pivot: after J15-J18 integrate, snapshot a baseline commit, move new work into per-job worktrees, then refactor to a language-adapter interface before adding languages.
 Next: integrate Rust jobs; gate; delegate adapter architecture.
 
+### 17 — 2026-11-26 (culture + commit batches)
+Action: User required manager behaviour — commit in batches and turn mistakes into durable culture, not just git hygiene. Added a Commit and worktree culture section to AGENTS.md; created two reviewed commits; dispatched J19 to an isolated worktree to convert nine real incidents into ethics/concepts/workflows.
+Verification: `git log --oneline` -> `4c26063 docs: turn build mistakes into enforceable ethics and workflows` on top of `ff793af docs: record verified base build and Rust addendum plan`. Review of J19 found a CRLF regression in six copied ethics files; fixed with `sed -i "s/\r$//"` and amended the commit -> `CR_COUNT=0`. J19's `docs/concepts/language-adapter.md` correctly flags that the current `Lang` enum approach conflicts with the required zero-core-change plugin invariant.
+Verdict: pass (culture docs)
+Failure class: line-ending regression during worktree merge.
+Pivot: normalized LF and amended rather than stacking a fix commit.
+Next: J15 parser gate, then architecture refactor to adapter registry, then additional language jobs. Note: `git worktree remove` failed due to a gitdir path mismatch left by the worktree tool; the directory is outside the repo and harmless.
+
+### 18 — 2026-11-26
+Action: All four Rust jobs landed; closed write window and ran the first Rust compile gate.
+Verification: `cargo fmt --all && cargo test --workspace` -> `RUST_GATE_STATUS=101`; one E0597 iterator-temporary lifetime error at `crates/fnscope-parser/src/body.rs:240`.
+Verdict: fail (single compiler error)
+Failure class: L1 (Rust borrow/lifetime error from delegated code without compiler feedback).
+Pivot: sent the exact diagnostic to J15 with the prescribed local-binding fix; no orchestrator code edit.
+Next: re-run gate, real scans of `tests/fixtures/rust_app` and `crates/`, then commit the Rust batch.
+
+### 19 — 2026-11-26
+Action: Re-ran the Rust compile gate after J15's fix, built the executable, and performed the two real scans the user asked for.
+Verification: `cargo test --workspace` -> `RUST_GATE2_STATUS=0`; parser 35 tests. Real scan of `tests/fixtures/rust_app` -> 7 functions, 12 steps, 2 calledBy edges, 2 resolved calls, 0 dangling. Real scan of `crates/` -> **188 functions, 722 steps, 243 calledBy edges, 243 resolved calls, 0 dangling**.
+Verdict: pass on the headline goal; two quality gaps found by inspection.
+Failure class: (a) expectation semantics — impl qualification lives in `id` (`calculator-scale`), not `name`; schema has no `qualified_name` field. (b) real bug — `Err(AppError { code: "EMPTY_TEXT" })` not detected, `classify.errors == []`.
+Pivot: accepted (a) and will correct the fixture doc; sent (b) plus a chained-call title polish back to J15.
+Next: re-gate, commit the Rust code batch with explicit staging, then delegate the adapter-registry refactor.
+
+### 20 — 2026-11-26
+Action: Rust quality fix re-gated; reviewer-process and culture-checker job (J20) dispatched; adapter-registry refactor (J21) dispatched into its own worktree with the verbatim review notice and review checklist.
+Verification: `cargo test --workspace` green after J15's `&Node` fixes; real scan of fixture -> `fixture_detail.classifyErrors == ["EMPTY_TEXT"]`; real scan of `crates/` -> 190 functions, 732 steps, 245 calledBy edges, 245 resolved calls, 0 dangling. `git log --oneline` -> `a961c53 feat: fnscope engine, CLI, server, UI and Rust backend` (62 files, explicit staging) on top of the two docs batches.
+Verdict: pass for the committed batch; polyglot architecture work in progress.
+Failure class: none in this iteration.
+Pivot: adopted the reviewer-process workflow — every subsequent implementation brief now states that an independent reviewer will audit it, pastes the checklist, and forbids cargo/temp files/commits.
+Next: integrate J20 (culture checker) and J21 (registry), run reviewer subagent on J21, gate, merge, then add language backends in reviewer-paired batches.
+
 ### Review notes (orchestrator)
 - J01 (model) reviewed: exact camelCase serde names, aggregated `validate`, 10 tests. One accepted deviation: uppercase hex accepted in `astHash` (still 64 hex chars). No conflict.
 - J09 (fixture) reviewed: 8 core functions, explicit `.ts` imports, `dryRun` path for safe invoke.
