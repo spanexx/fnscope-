@@ -42,6 +42,12 @@ D-3 gap: the ledger promised LF-only endings but the six copied files still carr
 
 **D-3 -> Resolved 2026-11-26.** Verified by: in WSL Debian, `sed -i 's/\r$//' docs/ethics/*.md`, then the corrected detector `grep -rlU $'\r' docs/ethics/*.md | wc -l` -> `0` with `grep_exit_status=1` (no matches). The byte-count check `tr -cd '\r' < "$f" | wc -c` returned `CR=0` for all ten files in `docs/ethics/*.md`. The earlier `CR_COUNT=0` stays recorded as a false green; the rule that came out of it is L10 in `docs/ethics/lessons.md`.
 
+    D-4 | 2026-11-26 | J21 reported `rustfmt --edition 2021 --check -> ALL_OWNED_RS_FMT_OK` and J22 reviewed `PASS` with 0 findings | `cargo test --workspace` after merge gave 12 E0425 errors: identifiers lost their final `r` (`adapter`->`adapte`, `declarator`->`declarato`, `inner`->`inne`, `member`->`membe`) because a CR-normalization command treated `\r$` as a literal trailing `r` | Resolved | J21 + J22 + orchestrator
+
+D-4 closure requires: restore every truncated identifier, verify zero CR bytes with `tr -cd '\r' < file | wc -c`, re-run the real compile gate, and re-review with the semantic-sanity checklist item added by L11. The false PASS stays in `.reports/reviews/J21.md` as evidence.
+
+**D-4 -> Resolved 2026-11-26.** Verified by: re-merged J21's 13 files directly from the worktree with `cp` only (no sed); `tr -cd '\r' < file | wc -c` -> 0 for all 13 (`REMERGE_OK`); `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0` with 101 tests passing (parser 44); `.reports/reviews/J21.md` appended `## Re-review 2026-11-26` ending `Verdict (re-review): PASS` with 0 truncated-identifier hits and byte-identical worktree/main files (SHA256 13/13). J21 demonstrated that `rustfmt --check` passed on the corrupted copy while `cargo test` failed — recorded as L11. The original false PASS was not deleted.
+
 ## Review rule (non-negotiable)
 
 When a review finds a gap between a locked doc and the code, append the entry

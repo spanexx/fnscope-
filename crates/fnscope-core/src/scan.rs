@@ -5,9 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use fnscope_model::{CallerRef, FnGraph, FnRecord, Purity, ReturnShape};
-use fnscope_parser::body::analyze;
-use fnscope_parser::discover::discover;
-use fnscope_parser::{collect_types, resolve_return_fields, BodyAnalysis, DiscoveredFn, Lang};
+use fnscope_parser::{registry, BodyAnalysis, DiscoveredFn, LanguageAdapter, Registry};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::{Deserialize, Serialize};
 
@@ -65,10 +63,12 @@ pub struct ScanReport {
 }
 
 /// One parsed file before ids and body analysis are assigned.
-struct ScannedFile {
+///
+/// The adapter is the only language-specific value that crosses into core.
+struct ScannedFile<'a> {
     relative: String,
     module: String,
-    lang: Lang,
+    adapter: &'a dyn LanguageAdapter,
     source: String,
     found: Vec<DiscoveredFn>,
     ids: Vec<String>,
@@ -153,19 +153,6 @@ fn collect_files(
     }
 }
 
-/// Chooses a parser grammar from the file extension.
-fn lang_for_path(relative: &str) -> Option<Lang> {
-    let extension = relative.rsplit_once('.')?.1.to_ascii_lowercase();
-    match extension.as_str() {
-        "ts" => Some(Lang::TypeScript),
-        "tsx" => Some(Lang::Tsx),
-        "js" => Some(Lang::JavaScript),
-        "jsx" => Some(Lang::Jsx),
-        "rs" => Some(Lang::Rust),
-        _ => None,
-    }
-}
-
 /// Returns the slash-separated parent directory, or the stem for root files.
 fn module_for_relative(relative: &str) -> String {
     match relative.rsplit_once('/') {
@@ -208,11 +195,25 @@ fn call_line(source: &str, code: &str, fallback: usize) -> usize {
     }
 }
 
-/// Builds a validated, un-enriched function graph without writing any files.
+/// Builds a validated, un-enriched function graph with the built-in adapters.
 pub fn scan(
     options: &ScanOptions,
     out_dir: &Path,
     generated_at: String,
+) -> Result<(FnGraph, ScanReport)> {
+    let registry = registry();
+    scan_with_registry(options, out_dir, generated_at, &registry)
+}
+
+/// Builds a graph with an injected registry, so a new language needs no core edit.
+///
+/// This is the single language-dispatch seam in the scanner: one extension
+/// lookup per file, with no per-language branch anywhere in the graph builder.
+pub fn scan_with_registry(
+    options: &ScanOptions,
+    out_dir: &Path,
+    generated_at: String,
+    registry: &Registry,
 ) -> Result<(FnGraph, ScanReport)> {
     let includes = build_glob_set(&options.includes, "include")?;
     let excludes = build_glob_set(&options.excludes, "exclude")?;
@@ -239,18 +240,22 @@ pub fn scan(
                 continue;
             }
         };
-        let Some(lang) = lang_for_path(&relative) else {
+        let extension = relative
+            .rsplit_once('.')
+            .map(|(_, ext)| ext)
+            .unwrap_or_default();
+        let Some(adapter) = registry.for_extension(extension) else {
             continue;
         };
         // Files are visited in sorted path order, so a later file wins when two
         // files declare the same type name; `extend` makes that deterministic.
-        types.extend(collect_types(lang, &source));
-        let found = discover(lang, &source, &relative);
+        types.extend(adapter.collect_types(&source));
+        let found = adapter.discover(&source, &relative);
         let module = module_for_relative(&relative);
         scanned.push(ScannedFile {
             relative,
             module,
-            lang,
+            adapter,
             source,
             found,
             ids: Vec::new(),
@@ -291,12 +296,13 @@ pub fn scan(
     let mut outgoing: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for file in scanned {
+        let adapter = file.adapter;
         for (found, id) in file.found.into_iter().zip(file.ids) {
             // Resolve through the complete project-wide index: a type may be
             // declared in a file visited after the function that returns it.
             let mut found = found;
-            resolve_return_fields(&mut found, &types);
-            let mut body = analyze(&found, file.lang, &file.source, &known_names);
+            adapter.resolve_return_fields(&mut found, &types);
+            let mut body = adapter.analyze(&found, &file.source, &known_names);
             let mut callees = BTreeSet::new();
 
             for step in &mut body.steps {
@@ -527,19 +533,143 @@ mod tests {
     }
 
     #[test]
-    fn helpers_choose_language_module_and_absolute_call_line() {
-        assert_eq!(lang_for_path("a.ts"), Some(Lang::TypeScript));
-        assert_eq!(lang_for_path("a.tsx"), Some(Lang::Tsx));
-        assert_eq!(lang_for_path("a.js"), Some(Lang::JavaScript));
-        assert_eq!(lang_for_path("a.jsx"), Some(Lang::Jsx));
-        assert_eq!(lang_for_path("a.rs"), Some(Lang::Rust));
-        assert_eq!(lang_for_path("a.RS"), Some(Lang::Rust));
-        assert_eq!(lang_for_path("a.json"), None);
+    fn helpers_choose_adapter_module_and_absolute_call_line() {
+        let registry = registry();
+        for (extension, id) in [
+            ("ts", "typescript"),
+            ("tsx", "tsx"),
+            ("js", "javascript"),
+            ("jsx", "jsx"),
+            ("rs", "rust"),
+            ("RS", "rust"),
+        ] {
+            assert_eq!(
+                registry
+                    .for_extension(extension)
+                    .map(|adapter| adapter.id()),
+                Some(id)
+            );
+        }
+        assert!(registry.for_extension("json").is_none());
         assert_eq!(module_for_relative("nlp/roles.ts"), "nlp");
         assert_eq!(module_for_relative("main.ts"), "main");
         // The third argument is the function's absolute start line, so the
         // result is an absolute file line (99 + two newlines before the call).
         assert_eq!(call_line("first\nsecond\nfoo()", "foo()", 99), 101);
         assert_eq!(call_line("no match", "foo()", 7), 7);
+    }
+
+    /// Temp directory removed on drop so the test leaves no scratch files behind.
+    struct TempScanDir {
+        path: PathBuf,
+    }
+
+    impl TempScanDir {
+        fn new(tag: &str) -> Self {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_nanos())
+                .unwrap_or(0);
+            let path =
+                std::env::temp_dir().join(format!("fnscope-{tag}-{}-{nanos}", std::process::id()));
+            std::fs::create_dir_all(&path).expect("create temp scan dir");
+            Self { path }
+        }
+    }
+
+    impl Drop for TempScanDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    /// A minimal adapter claiming a novel extension.
+    struct FakeAdapter;
+
+    impl LanguageAdapter for FakeAdapter {
+        fn id(&self) -> &'static str {
+            "fake"
+        }
+
+        fn extensions(&self) -> &'static [&'static str] {
+            &["zig"]
+        }
+
+        fn discover(&self, _source: &str, _relative_path: &str) -> Vec<DiscoveredFn> {
+            vec![DiscoveredFn {
+                name: "zeta".to_owned(),
+                qualified_name: "zeta".to_owned(),
+                kind: fnscope_parser::FnKind::Declaration,
+                line: 1,
+                end_line: 1,
+                source_code: "pub fn zeta() {}".to_owned(),
+                parameters: Vec::new(),
+                returns: ReturnShape {
+                    type_: "void".to_owned(),
+                    fields: Vec::new(),
+                },
+                doc_description: None,
+                tags: Vec::new(),
+                is_async: false,
+                class_name: None,
+            }]
+        }
+
+        fn analyze(
+            &self,
+            _found: &DiscoveredFn,
+            _source: &str,
+            _known_names: &[String],
+        ) -> BodyAnalysis {
+            BodyAnalysis::default()
+        }
+
+        fn collect_types(&self, _source: &str) -> BTreeMap<String, ReturnShape> {
+            BTreeMap::new()
+        }
+
+        fn resolve_return_fields(
+            &self,
+            _found: &mut DiscoveredFn,
+            _types: &BTreeMap<String, ReturnShape>,
+        ) {
+        }
+    }
+
+    /// A registered adapter is selected by core for an extension it uniquely claims.
+    #[test]
+    fn injected_adapter_is_selected_for_a_novel_extension() {
+        let temp = TempScanDir::new("adapter-registry");
+        std::fs::write(temp.path.join("main.zig"), "pub fn zeta() {}").expect("write fixture");
+        let options = ScanOptions {
+            target_dir: temp.path.clone(),
+            includes: vec!["**/*.zig".to_owned()],
+            ..ScanOptions::default()
+        };
+
+        // The built-in registry alone cannot scan this extension.
+        let (builtin, _) = scan(
+            &options,
+            Path::new(".fnscope"),
+            "2026-11-26T00:00:00Z".to_owned(),
+        )
+        .expect("built-in scan");
+        assert!(builtin.functions.is_empty());
+
+        let mut registry = Registry::new();
+        registry.register(Box::new(FakeAdapter));
+        let (graph, report) = scan_with_registry(
+            &options,
+            Path::new(".fnscope"),
+            "2026-11-26T00:00:00Z".to_owned(),
+            &registry,
+        )
+        .expect("injected scan");
+
+        assert_eq!(report.function_count, 1);
+        assert_eq!(report.file_count, 1);
+        assert_eq!(graph.functions.len(), 1);
+        assert_eq!(graph.functions[0].name, "zeta");
+        assert_eq!(graph.functions[0].file_path, "main.zig");
     }
 }

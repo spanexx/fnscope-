@@ -219,6 +219,30 @@ Failure class: none in this iteration.
 Pivot: adopted the reviewer-process workflow — every subsequent implementation brief now states that an independent reviewer will audit it, pastes the checklist, and forbids cargo/temp files/commits.
 Next: integrate J20 (culture checker) and J21 (registry), run reviewer subagent on J21, gate, merge, then add language backends in reviewer-paired batches.
 
+### 21 — 2026-11-26
+Action: Reviewed and merged J20's culture work; committed it as a separate batch.
+Verification: J20 ran `bash -n scripts/check-culture.sh` -> exit 0; `bash scripts/check-culture.sh --self-test` -> `CULTURE_SELFTEST_OK`; `bash scripts/check-culture.sh` -> eight `[PASS]` lines and `CULTURE_OK`. D-3 drift row was Open before the LF fix and Resolved after, with the real command/output quoted. Orchestrator re-read `docs/drift.md` and `scripts/check-culture.sh` before staging. `git log --oneline` -> `ec2e8b0 docs: enforce reviewed-workflow culture and prove the culture gate`.
+Verdict: pass
+Failure class: none in the merge; earlier false green is recorded as D-3/L10.
+Pivot: none.
+Next: J21 registry refactor + independent reviewer; then language batches.
+
+### 22 — 2026-11-26
+Action: J21 delivered the adapter-registry refactor in its isolated worktree; orchestrator dispatched J22, an independent reviewer with no implementation authority, per `docs/workflows/reviewer-process.md`.
+Verification: J21 reported `rustfmt --edition 2021 --check` clean, five built-in suffix adapters, one registry lookup per file in core, `scan_with_registry` injection seam, and a fake-adapter/zig test. Not yet trusted or merged.
+Verdict: pending independent review
+Failure class: none recorded yet
+Pivot: first use of the reviewer-process workflow — no merge without PASS.
+Next: read `.reports/reviews/J21.md`; send FAIL findings back to J21; gate; merge; commit.
+
+### 23 — 2026-11-26
+Action: Merged J21's reviewed worktree into main, normalized line endings, and ran the real compile gate.
+Verification: `cargo test --workspace` -> 12 E0425 errors: identifiers lost their final `r` (`adapte`, `declarato`, `inne`, `membe`) in J21's original worktree files. The reviewer's `PASS` and the implementer's `rustfmt --check` green were both false evidence. `bash scripts/check-culture.sh` -> `CULTURE_OK` after J20 added review-report evidence exception.
+Verdict: fail (reviewed code did not compile)
+Failure class: L10 recurrence — byte-level normalization with `sed 's/\r$//'` treated `\r` as literal `r`; format check mistaken for correctness; reviewer false PASS.
+Pivot: D-4 drift appended before the fix; J21 restoring identifiers with `tr -d '\r'` verification; J22 to re-review with a new semantic-sanity checklist item; J20 writing L11. No merge until a real gate passes.
+Next: re-gate, fresh reviewer, commit adapter refactor only after PASS.
+
 ### Review notes (orchestrator)
 - J01 (model) reviewed: exact camelCase serde names, aggregated `validate`, 10 tests. One accepted deviation: uppercase hex accepted in `astHash` (still 64 hex chars). No conflict.
 - J09 (fixture) reviewed: 8 core functions, explicit `.ts` imports, `dryRun` path for safe invoke.

@@ -24,6 +24,7 @@ find in those files. They are marked, not quoted as if they were evidence.
 | L8 | Iterations 13–14 — empty `trace` in Node-mode responses | A response field the UI renders is part of the API contract | `docs/workflows/boundary-contract-audit.md` |
 | L9 | Iteration 16 — polyglot expansion | A new language is a plugin, not a branch in the graph builder | `docs/concepts/language-adapter.md` |
 | L10 | Iteration 17 — `CR_COUNT=0` from `$"\r"`, a false green | Prove a check against a known positive and negative; put byte-level checks in a script, never inline across two shells | `scripts/check-culture.sh --self-test`, `docs/drift.md` D-3 |
+| L11 | Iteration 23 — `ALL_OWNED_RS_FMT_OK` from `rustfmt --check`, then 12 `E0425` errors | A format check is not a correctness check; normalize bytes with `tr -d '\r'`, never `sed 's/\r$//'` | `docs/workflows/reviewer-process.md` checklist item 12; orchestrator compile gate |
 
 ## L1 — Seven compiler errors from parallel writes with no compile window
 
@@ -221,6 +222,34 @@ CRLF sample to be detected and the LF sample not to be, and prints
 `CULTURE_SELFTEST_OK`. A detector that reports green on the CRLF positive
 control is broken by definition; do not use its output as evidence. Record the
 real command and its printout next to any green verdict.
+
+## L11 — A format marker stood in for a compile result
+
+**Incident (iteration 23).** J21 refactored the parser into adapters and reported
+`rustfmt --edition 2021 --check` -> `ALL_OWNED_RS_FMT_OK`. J22, the independent
+reviewer, gave PASS with 0 findings. The orchestrator merged and
+`cargo test --workspace` returned 12 `E0425` errors: identifiers had lost their
+final `r` — `adapter` -> `adapte`, `declarator` -> `declarato`, `inner` -> `inne`,
+`member` -> `membe`. The cause was a byte-normalization command that treated
+`\r$` as a literal trailing `r`. Formatting was green while the code did not
+compile. Both the implementer and the reviewer accepted a format check as
+evidence of correctness.
+
+**Rule.** A syntax/format check is NOT a correctness check. `rustfmt --check`
+proves formatting, not that identifiers resolve. Never report it as `*_OK`
+evidence for compilation. Byte-level normalization must use `tr -d '\r'` (or
+`perl -pi -e 's/\r//g'`) and then verify with `tr -cd '\r' < file | wc -c` equal
+to 0. Never `sed 's/\r$//'` — in this environment it removes a literal trailing
+`r`.
+
+**Checkable procedure.** The reviewer does a semantic sanity read of new code:
+look for suspiciously truncated identifiers, undefined locals and any symbol
+the compiler would reject. Cite the orchestrator's compile gate as the only
+evidence that code compiles; a PASS means "no defect found by source audit",
+not "compiles". If a later gate finds a defect the PASS missed, record the
+false PASS as a finding in `.reports/reviews/<job-id>.md` on re-review; do not
+delete the old verdict. Checklist item 12 in
+`docs/workflows/reviewer-process.md` carries this into every job brief.
 
 ## Evidence limits
 

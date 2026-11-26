@@ -34,6 +34,7 @@ its own work passed.
 | J16 | `crates/fnscope-core/` | `.rs` file discovery: `**/*.rs` default include, `**/target/**` default exclude |
 | J17 | `tests/fixtures/rust_app/` | Rust fixture project for real scans |
 | J18 | `README.md` (root), `docs/features/fnscope-base/` | user-facing and feature docs for the Rust addendum |
+| J21 | `crates/fnscope-parser/**`, `crates/fnscope-core/**`, `docs/contract/adapter-api.md`, this file | language-adapter trait + registry; TS/JS and Rust grammar moved behind adapters; one registry lookup in core; `scan_with_registry` injection seam |
 
 The Rust addendum (J15-J18) is **pending verification**: its jobs write files
 only and the orchestrator reviews each one before running any gate. No Rust

@@ -10,7 +10,7 @@ procedure. Use the smallest one that fits; do not run all five by default.
 | `test-failure-triage.md` | A test is red and you must decide whether code or test is wrong | L2 |
 | `cross-environment-runner.md` | A process is launched from one OS into another, or a generated file crosses WSL/Windows | L3 |
 | `boundary-contract-audit.md` | Data crosses a boundary (manifest, form, POST, runner, export), or a UI feature must be proven as rendered | L4, L5, L8 |
-| `reviewer-process.md` | Every implementation job: self-contained brief, independent review, FAIL fix loop, then merge only on PASS | L1, L6, L7, iteration 17 |
+| `reviewer-process.md` | Every implementation job: self-contained brief, independent review, FAIL fix loop, then merge only on PASS | L1, L6, L7, L11, iteration 17 |
 
 `scripts/check-culture.sh` is the machine gate for the rules these procedures
 share. Run it after staging; it prints `CULTURE_OK` only when every mechanical

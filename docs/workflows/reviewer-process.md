@@ -82,6 +82,19 @@ the same model as the implementer, never the same role in that job.
     right" is not evidence.
 11. Drift: any doc-vs-code gap found was written to `docs/drift.md` before the
     edit, and its status cell agrees with its note (L6).
+12. Semantic sanity: no truncated/undefined identifiers; formatted code is not
+    proven-correct code; cite the orchestrator gate as the only compile
+    evidence.
+
+A `rustfmt --check` marker, including `*_OK`, proves formatting only. It is not
+evidence that identifiers resolve. Do a semantic sanity read of new code:
+truncated names (`adapter` -> `adapte`), undefined locals and any symbol the
+compiler would reject are findings with `path:line`. A reviewer's PASS means
+"no defect found by source audit", not "compiles"; the orchestrator runs the
+real compile gate. If a later gate proves a PASS was false, the re-review
+records that miss as a finding in `.reports/reviews/<job-id>.md` and marks the
+prior verdict superseded. A false PASS is a review failure, not a rounding
+error; never delete the old PASS to make the file look clean (L11).
 
 ### Review report template
 

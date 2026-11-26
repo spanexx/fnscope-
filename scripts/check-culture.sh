@@ -35,6 +35,10 @@ PATH_WAIVER='culture-allow: absolute path'
 #   AGENTS.md                              - names the WSL repo path (the lane).
 #   .reports/goal-build-fnscope.md         - verbatim orchestrator ledger.
 #   .reports/ui-browser.md                 - verbatim browser audit.
+#   .reports/reviews/*.md                  - verbatim review reports quote the
+#                                            worktree path as proof of what was
+#                                            inspected; directory rule so future
+#                                            reports need no per-file edit.
 #   docs/ethics/lessons.md                 - verbatim incident quotes.
 #   docs/workflows/cross-environment-runner.md - verbatim cross-OS error text.
 PATH_EXCEPTIONS=(
@@ -43,6 +47,10 @@ PATH_EXCEPTIONS=(
   '.reports/ui-browser.md'
   'docs/ethics/lessons.md'
   'docs/workflows/cross-environment-runner.md'
+)
+# Directory-prefix exceptions, matched as "$f" == "$dir"*.
+PATH_EXCEPTION_DIRS=(
+  '.reports/reviews/'
 )
 
 # The single CRLF detector shared by the gate and its self-test. -U stops grep
@@ -87,12 +95,17 @@ check_crlf() {
 
 check_absolute_paths() {
   local -a offenders=()
-  local f exception skip bad_lines
+  local f exception dir skip bad_lines
   for f in "${TEXT_FILES[@]}"; do
     skip=0
     for exception in "${PATH_EXCEPTIONS[@]}"; do
       if [[ "$f" == "$exception" ]]; then skip=1; break; fi
     done
+    if (( ! skip )); then
+      for dir in "${PATH_EXCEPTION_DIRS[@]}"; do
+        if [[ "$f" == "$dir"* ]]; then skip=1; break; fi
+      done
+    fi
     (( skip )) && continue
     bad_lines="$(grep -nE "$PATH_RE" "$f" 2>/dev/null | grep -vF "$PATH_WAIVER" || true)"
     if [[ -n "$bad_lines" ]]; then offenders+=("$f"); fi
