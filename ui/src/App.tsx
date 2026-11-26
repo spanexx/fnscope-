@@ -1,17 +1,33 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Inbox } from 'lucide-react';
 import AppShell from './components/AppShell';
+import type { Crumb } from './components/BreadcrumbBar';
+import EmptyState from './components/EmptyState';
 import ProvenanceStrip from './components/ProvenanceStrip';
+import { ErrorState, LoadingState } from './components/StatusState';
 import { ThemeProvider } from './components/ThemeProvider';
 import { ToastProvider, useToast } from './components/Toast';
 import TopBar from './components/TopBar';
-import { CanvasPlaceholder, ExplorerPlaceholder, InvokePlaceholder } from './components/Placeholders';
-import type { LoadError } from './components/Placeholders';
+import { Explorer } from './explorer';
+import type { ExplorerError } from './explorer';
+import {
+  appendCrumb,
+  backTrail,
+  crumbFor,
+  currentCrumb,
+  prependCrumb,
+  startTrail,
+  truncateTrail,
+} from './explorer/trail';
+import { InvokeDrawer } from './invoke';
+import InvokeEmpty from './invoke/InvokeEmpty';
 import { fetchScopeGraph, fetchScopeList } from './api';
-import { viewForShortcut } from './lib/shortcuts';
-import { isTypingTarget } from './lib/shortcuts';
-import type { FnGraph, ScopeList, ShellStatus, ViewId } from './lib/types';
+import { indexFunctions, resolveDefaultFunctionId } from './lib/graph';
+import { isTypingTarget, viewForShortcut } from './lib/shortcuts';
+import type { FnGraph, ScopeDescriptor, ScopeList, ShellStatus, ViewId } from './lib/types';
 import { pickInitialScopeId, rememberScopeId } from './state/scope';
 import { useMediaQuery } from './state/useMediaQuery';
+import CanvasViews from './views';
 
 type Boot =
   | { status: 'loading' }
@@ -28,8 +44,6 @@ type GraphLoad =
   | { status: 'loading' }
   | { status: 'ready'; scopeId: string; graph: FnGraph }
   | { status: 'error'; scopeId: string; message: string; detail?: string };
-
-const EMPTY_TRAIL: { id: string; label: string }[] = [];
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -48,6 +62,8 @@ function WorkspaceApp() {
   const [graphLoad, setGraphLoad] = useState<GraphLoad>({ status: 'idle' });
   const [view, setView] = useState<ViewId>('story');
   const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [trail, setTrail] = useState<Crumb[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window === 'undefined' ? true : window.innerWidth >= 980
   );
@@ -76,6 +92,8 @@ function WorkspaceApp() {
     setScopeId(null);
     setGraphLoad({ status: 'idle' });
     setSearch('');
+    setSelectedId(null);
+    setTrail([]);
 
     (async () => {
       try {
@@ -166,12 +184,97 @@ function WorkspaceApp() {
 
   const focusSearch = useCallback(() => setFocusSearchRequested(true), []);
   const requestReload = useCallback(() => setReloadKey((key) => key + 1), []);
-  const handleBack = useCallback(() => {
-    // No trail exists until the explorer lands; Back stays disabled at the root.
-  }, []);
-  const handleRun = useCallback(() => {
-    push('Select a function once the explorer lands, then run it here.', 'info');
-  }, [push]);
+
+  const scopes = boot.status === 'ready' ? boot.list.scopes : [];
+  const scope = scopes.find((entry) => entry.id === scopeId) || null;
+  const graph =
+    graphLoad.status === 'ready' && graphLoad.scopeId === scopeId ? graphLoad.graph : null;
+  const graphError =
+    graphLoad.status === 'error' && graphLoad.scopeId === scopeId ? graphLoad : null;
+  const compatibility = boot.status === 'ready' ? boot.compatibility : false;
+
+  const graphIndex = useMemo(() => (graph ? indexFunctions(graph) : null), [graph]);
+  const selectedFn = selectedId && graphIndex ? (graphIndex.get(selectedId) ?? null) : null;
+
+  // A loaded manifest owns a fresh default selection and a one-crumb trail.
+  useEffect(() => {
+    if (!graph) {
+      setSelectedId(null);
+      setTrail([]);
+      return;
+    }
+    const id = resolveDefaultFunctionId(graph, scope?.defaultFunctionId ?? null);
+    const fn = id ? (graph.functions.find((entry) => entry.id === id) ?? null) : null;
+    setSelectedId(id);
+    setTrail(fn ? startTrail(crumbFor(fn)) : []);
+  }, [graph, scope?.defaultFunctionId]);
+
+  let status: ShellStatus = 'loading';
+  if (boot.status === 'error') status = 'error';
+  else if (boot.status === 'ready' && graphError) status = 'error';
+  else if (graph) status = graph.functions.length > 0 ? 'ready' : 'empty';
+
+  const error: ExplorerError | null =
+    boot.status === 'error'
+      ? { message: boot.message, detail: boot.detail }
+      : graphError
+        ? { message: graphError.message, detail: graphError.detail }
+        : null;
+
+  const selectFunction = useCallback(
+    (id: string) => {
+      const fn = graphIndex?.get(id);
+      if (!fn) return;
+      setSelectedId(id);
+      setTrail(startTrail(crumbFor(fn)));
+    },
+    [graphIndex]
+  );
+
+  const followCaller = useCallback(
+    (id: string) => {
+      const fn = graphIndex?.get(id);
+      if (!fn) return;
+      setSelectedId(id);
+      setTrail((prev) => prependCrumb(prev, crumbFor(fn)));
+    },
+    [graphIndex]
+  );
+
+  const followCallee = useCallback(
+    (id: string) => {
+      const fn = graphIndex?.get(id);
+      if (!fn) return;
+      setSelectedId(id);
+      setTrail((prev) => appendCrumb(prev, crumbFor(fn)));
+    },
+    [graphIndex]
+  );
+
+  const selectTrail = useCallback(
+    (index: number) => {
+      const trimmed = truncateTrail(trail, index);
+      if (trimmed === trail) return;
+      setTrail(trimmed);
+      setSelectedId(currentCrumb(trimmed)?.id ?? null);
+    },
+    [trail]
+  );
+
+  const goBack = useCallback(() => {
+    if (trail.length <= 1) return;
+    const next = backTrail(trail);
+    setTrail(next);
+    setSelectedId(currentCrumb(next)?.id ?? null);
+  }, [trail]);
+
+  const openInvoke = useCallback(() => {
+    if (!selectedFn) {
+      push('Select a function in the explorer, then open the invoke sandbox.', 'info');
+      return;
+    }
+    setDrawerOpen(true);
+  }, [selectedFn, push]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -187,14 +290,13 @@ function WorkspaceApp() {
 
       if (command && event.key === 'Enter') {
         event.preventDefault();
-        if (!drawerOpen) setDrawerOpen(true);
-        handleRun();
+        openInvoke();
         return;
       }
 
       if (event.altKey && event.key === 'ArrowLeft' && !typing) {
         event.preventDefault();
-        handleBack();
+        goBack();
         return;
       }
 
@@ -232,12 +334,12 @@ function WorkspaceApp() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [drawerOpen, sidebarOpen, narrowSidebar, focusSearch, handleRun, handleBack]);
+  }, [drawerOpen, sidebarOpen, narrowSidebar, focusSearch, openInvoke, goBack]);
 
   const selectScope = useCallback(
     (nextId: string) => {
       if (boot.status !== 'ready') return;
-      const next = boot.list.scopes.find((scope) => scope.id === nextId);
+      const next = boot.list.scopes.find((scopeEntry) => scopeEntry.id === nextId);
       if (!next) {
         push(`Unknown scope: ${nextId}`, 'error');
         return;
@@ -251,30 +353,12 @@ function WorkspaceApp() {
       setScopeId(nextId);
       setView('story');
       setSearch('');
+      setSelectedId(null);
+      setTrail([]);
       push(`Switched to ${next.label}`, 'info');
     },
     [boot, scopeId, push]
   );
-
-  const scopes = boot.status === 'ready' ? boot.list.scopes : [];
-  const scope = scopes.find((entry) => entry.id === scopeId) || null;
-  const graph =
-    graphLoad.status === 'ready' && graphLoad.scopeId === scopeId ? graphLoad.graph : null;
-  const graphError =
-    graphLoad.status === 'error' && graphLoad.scopeId === scopeId ? graphLoad : null;
-  const compatibility = boot.status === 'ready' ? boot.compatibility : false;
-
-  let status: ShellStatus = 'loading';
-  if (boot.status === 'error') status = 'error';
-  else if (boot.status === 'ready' && graphError) status = 'error';
-  else if (graph) status = graph.functions.length > 0 ? 'ready' : 'empty';
-
-  const error: LoadError | null =
-    boot.status === 'error'
-      ? { message: boot.message, detail: boot.detail }
-      : graphError
-        ? { message: graphError.message, detail: graphError.detail }
-        : null;
 
   return (
     <AppShell
@@ -286,10 +370,10 @@ function WorkspaceApp() {
           scopeMenuDisabled={boot.status !== 'ready'}
           view={view}
           onChangeView={setView}
-          trail={EMPTY_TRAIL}
-          onSelectTrail={() => undefined}
-          onBack={handleBack}
-          backDisabled
+          trail={trail}
+          onSelectTrail={selectTrail}
+          onBack={goBack}
+          backDisabled={trail.length <= 1}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((open) => !open)}
           drawerOpen={drawerOpen}
@@ -297,34 +381,53 @@ function WorkspaceApp() {
         />
       }
       sidebar={
-        <ExplorerPlaceholder
-          status={status}
-          scope={scope}
+        <Explorer
           graph={graph}
-          error={error}
-          onRetry={requestReload}
-          searchValue={search}
+          selectedId={selectedId}
+          onSelect={selectFunction}
+          search={search}
           onSearchChange={setSearch}
           searchRef={searchRef}
+          status={status}
+          scope={scope}
+          error={error}
+          onRetry={requestReload}
         />
       }
       canvas={
-        <CanvasPlaceholder
-          view={view}
-          status={status}
-          scope={scope}
-          graph={graph}
-          error={error}
-          onRetry={requestReload}
-        />
+        graph ? (
+          <CanvasViews
+            key={`${scopeId}:${selectedId ?? 'none'}`}
+            graph={graph}
+            fn={selectedFn}
+            view={view}
+            onCaller={followCaller}
+            onCallee={followCallee}
+            onSelect={selectFunction}
+            onInvoke={openInvoke}
+            trail={trail}
+          />
+        ) : (
+          <CanvasStatus status={status} scope={scope} error={error} onRetry={requestReload} />
+        )
       }
       drawer={
-        <InvokePlaceholder
-          scope={scope}
-          compatibility={compatibility}
-          status={status}
-          onClose={() => setDrawerOpen(false)}
-        />
+        scope && selectedFn ? (
+          <InvokeDrawer
+            key={`${scope.id}:${selectedFn.id}`}
+            scope={scope}
+            fn={selectedFn}
+            compatibility={compatibility}
+            onClose={() => setDrawerOpen(false)}
+          />
+        ) : (
+          <InvokeEmpty
+            scope={scope}
+            compatibility={compatibility}
+            status={status}
+            onClose={() => setDrawerOpen(false)}
+          />
+        )
       }
       provenance={
         <ProvenanceStrip
@@ -338,6 +441,48 @@ function WorkspaceApp() {
       drawerOpen={drawerOpen}
       onCloseSidebar={() => setSidebarOpen(false)}
       onCloseDrawer={() => setDrawerOpen(false)}
+    />
+  );
+}
+
+interface CanvasStatusProps {
+  status: ShellStatus;
+  scope: ScopeDescriptor | null;
+  error: ExplorerError | null;
+  onRetry: () => void;
+}
+
+/** Canvas states that precede a loaded graph; no view can invent facts without it. */
+function CanvasStatus({ status, scope, error, onRetry }: CanvasStatusProps) {
+  if (status === 'loading') {
+    return (
+      <LoadingState
+        label={scope ? `Loading ${scope.label}` : 'Loading workspace'}
+        detail="Reading the local manifest from the fnscope server."
+      />
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <ErrorState
+        title="The manifest could not be loaded"
+        message={error?.message}
+        detail={error?.detail}
+        onRetry={onRetry}
+      />
+    );
+  }
+
+  return (
+    <EmptyState
+      icon={<Inbox className="h-4 w-4" aria-hidden="true" />}
+      title={status === 'empty' ? 'This scope is empty' : 'No scope selected'}
+      description={
+        status === 'empty'
+          ? 'No function records exist, so there is nothing to show here. Scan a directory with fnscope before opening it.'
+          : 'The workspace did not return an available scope.'
+      }
     />
   );
 }
