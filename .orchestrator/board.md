@@ -40,9 +40,15 @@ Waves 4–6 are parallel only because they own disjoint directories.
 
 | Job | Work | Worktree / branch | Model | Status |
 |---|---|---|---|---|
-| J1 | Server scope registry + scoped API | `~/.config/superpowers/worktrees/fnscope/feature-scope-server` / `feature/scope-server` | paid fallback `opencode-go/deepseek-v4.1-flash` | fix `0cc0186` committed; re-review running |
-| J2 | UI shell, theme, API, state, primitives | `~/.config/superpowers/worktrees/fnscope/feature-ui-foundation` / `feature/ui-foundation` | paid fallback `opencode-go/deepseek-v4.1-flash` | review PASS; `generatedAt` fix `f7227ee`; integrating |
-| J3 | Two-scope workspace fixture | `~/.config/superpowers/worktrees/fnscope/feature-workspace-fixtures` / `feature/workspace-fixtures` | paid fallback | complete / integrated `681c691` |
+| J1 | Server scope registry + scoped API | `~/.config/superpowers/worktrees/fnscope/feature-scope-server` / `feature/scope-server` | paid fallback `opencode-go/deepseek-v4.1-flash` | complete / integrated `9426b5b` + `efaab96`; review PASS |
+| J2 | UI shell, theme, API, state, primitives | `~/.config/superpowers/worktrees/fnscope/feature-ui-foundation` / `feature/ui-foundation` | paid fallback `opencode-go/deepseek-v4.1-flash` | complete / integrated `e584433` + `9c0e6c9`; review PASS |
+| J3 | Two-scope workspace fixture | `~/.config/superpowers/worktrees/fnscope/feature-workspace-fixtures` / `feature/workspace-fixtures` | paid fallback | complete / integrated `681c691`; review PASS |
+
+Gate on the integrated tree: `ALL_TESTS_OK`, `CULTURE_OK`, `UI_CHECK_OK`, `UI_TEST_OK`,
+`UI_CONTRACT_OK`, `SERVER_SMOKE_OK`; 26 server tests; `ui/dist` rebuilt. D-8 closed.
+
+Next wave: CLI workspace config; explorer; Story/1-Hop/Split/Raw; invoke drawer; then
+accessibility/polish and acceptance.
 
 Free-tier implementation failed before any edit; the paid fallback is the documented last-resort
 lane. Keep paid concurrency limited and integrate one reviewed commit at a time.

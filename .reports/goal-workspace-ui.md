@@ -125,3 +125,18 @@ Pivot: send J1 back for process-tree termination + test; send J2 a small `genera
 Font bundling remains an explicit Phase 7 task, not silently dropped.
 Next: re-review J1; integrate J1/J2; run the full workspace/UI gate; launch CLI/explorer/views/
 invoke.
+
+### 7 — 2026-11-27T00:02
+
+Action: re-reviewed J1's process-tree cleanup (PASS), cherry-picked the reviewed J1/J2 stacks,
+rebuilt `ui/dist`, ran the full sanctioned gate and the culture gate, closed D-8, and removed a
+stray `Program` symlink.
+Verification: `bash scripts/test-all.sh` -> `ALL_TESTS_OK`; `CULTURE_SELFTEST_OK` then
+`CULTURE_OK`; `UI_CHECK_OK` (29 source files), `UI_TEST_OK`, `UI_CONTRACT_OK` (9 functions),
+`FIXTURE_SCAN_OK`, `SERVER_SMOKE_OK`; `cargo test -p fnscope-server` -> 26 passed; workspace test
+lines total 233 passed, 0 failed. `ui/dist` rebuilt.
+Verdict: pass
+Failure class: none
+Pivot: none
+Next: launch the CLI workspace job and the explorer/view/invoke UI jobs from the integrated
+baseline.

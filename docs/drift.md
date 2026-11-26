@@ -64,9 +64,11 @@ D-6 closure requires replacing the dependency with `tree-sitter-kotlin-ng 1.1` (
 
 D-7 closure requires the workspace-ui pack to rename or relabel the primary view and update the base PRD/README references, with a `Verified by:` note naming the rendered browser check.
 
-    D-8 | 2026-11-26 | crates/fnscope-server/src/lib.rs:117-118 comment says the loaded graph is validated before serving | fn_graph deserializes `FnGraph` but never calls `FnGraph::validate` | Open | workspace-ui server job
+    D-8 | 2026-11-26 | crates/fnscope-server/src/lib.rs:117-118 comment says the loaded graph is validated before serving | fn_graph deserializes `FnGraph` but never calls `FnGraph::validate` | Resolved | workspace-ui server job
 
 D-8 closure requires the server scope work to validate the graph before serving, add a corrupt-manifest test, and record the real gate output in a `Verified by:` note.
+
+**D-8 -> Resolved 2026-11-27.** Verified by: `cargo test -p fnscope-server` -> 26 passed, including `d8_validation_rejects_a_semantically_invalid_manifest`; `bash scripts/test-all.sh` -> `ALL_TESTS_OK`. `parse_and_validate` calls `FnGraph::validate()` before serving; the corrupt-manifest test proves the default and scoped graph routes return 500 and the scope list reports `available:false`.
 
 ## Review rule (non-negotiable)
 
