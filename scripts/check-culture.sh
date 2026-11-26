@@ -45,12 +45,14 @@ PATH_EXCEPTIONS=(
   'AGENTS.md'
   '.reports/goal-build-fnscope.md'
   '.reports/ui-browser.md'
+  '.reports/ui-workspace-audit.md'
   'docs/ethics/lessons.md'
   'docs/workflows/cross-environment-runner.md'
 )
 # Directory-prefix exceptions, matched as "$f" == "$dir"*.
 PATH_EXCEPTION_DIRS=(
   '.reports/reviews/'
+  '.reports/ui-workspace-audit/'
 )
 # Glob exceptions: GRILL files quote user prompts and ledger output verbatim,
 # so an absolute path inside one is quoted evidence, not a configuration.
@@ -249,6 +251,25 @@ check_contract_symbols() {
   fi
 }
 
+check_ui_assets() {
+  local -a missing=()
+  local f
+  for f in ui/dist/index.html ui/dist/app.js ui/dist/app.css; do
+    [[ -s "$f" ]] || missing+=("$f")
+  done
+  if (( ${#missing[@]} > 0 )); then
+    record_fail "UI_ASSET: missing or empty ${missing[*]}"
+    return
+  fi
+  if ! grep -qF 'include_str!("../../../ui/dist/index.html")' crates/fnscope-server/src/lib.rs ||
+     ! grep -qF 'include_str!("../../../ui/dist/app.js")' crates/fnscope-server/src/lib.rs ||
+     ! grep -qF 'include_str!("../../../ui/dist/app.css")' crates/fnscope-server/src/lib.rs; then
+    record_fail "UI_ASSET: server does not embed all three ui/dist assets"
+    return
+  fi
+  record_pass "UI_ASSET: three embedded assets present and referenced"
+}
+
 check_scratch_files() {
   local -a offenders=()
   local f rel
@@ -280,6 +301,21 @@ ORIGIN_PATH_PACKS=(
   crates/fnscope-model=fnscope-base
   crates/fnscope-parser=fnscope-base
   crates/fnscope-server=fnscope-base
+  crates/fnscope-server/src/workspace.rs=workspace-ui
+  crates/fnscope-server/src/scope.rs=workspace-ui
+  ui/src/main.tsx=workspace-ui
+  ui/src/App.tsx=workspace-ui
+  ui/src/api.ts=workspace-ui
+  ui/src/types.ts=workspace-ui
+  ui/src/input.css=workspace-ui
+  ui/src/theme.css=workspace-ui
+  ui/src/lib=workspace-ui
+  ui/src/state=workspace-ui
+  ui/src/components=workspace-ui
+  ui/src/explorer=workspace-ui
+  ui/src/views=workspace-ui
+  ui/src/invoke=workspace-ui
+  ui/src/styles=workspace-ui
   ui/src=fnscope-base
 )
 
@@ -310,8 +346,26 @@ changed_code_paths() {
     git diff --name-only -- "${ORIGIN_CODE_PATHS[@]}"
     git ls-files --others --exclude-standard -- "${ORIGIN_CODE_PATHS[@]}"
   } | awk -F/ '
-    $1 == "crates" && NF >= 3 { print "crates/" $2; next }
-    $1 == "ui" && $2 == "src" { print "ui/src" }
+    $1 == "crates" && NF >= 3 {
+      if ($2 == "fnscope-server" && $3 == "src" && NF >= 4 &&
+          ($4 == "workspace.rs" || $4 == "scope.rs")) {
+        print "crates/fnscope-server/src/" $4;
+      } else {
+        print "crates/" $2;
+      }
+      next;
+    }
+    $1 == "ui" && $2 == "src" {
+      if ($3 == "lib" || $3 == "state" || $3 == "components" ||
+          $3 == "explorer" || $3 == "views" || $3 == "invoke" || $3 == "styles") {
+        print "ui/src/" $3;
+      } else if ($3 == "main.tsx" || $3 == "App.tsx" || $3 == "api.ts" ||
+                 $3 == "types.ts" || $3 == "input.css" || $3 == "theme.css") {
+        print "ui/src/" $3;
+      } else {
+        print "ui/src";
+      }
+    }
   ' | sort -u
 }
 
@@ -429,6 +483,29 @@ self_test() {
     printf 'CULTURE_SELFTEST_FAIL: known LF sample was reported as CRLF\n' >&2
     exit 1
   fi
+
+  local mapped
+  mapped="$(origin_pack_slug 'ui/src')"
+  if [[ "$mapped" != 'fnscope-base' ]]; then
+    printf 'CULTURE_SELFTEST_FAIL: ui/src mapped to %s, expected fnscope-base\n' "$mapped" >&2
+    exit 1
+  fi
+  mapped="$(origin_pack_slug 'ui/src/lib')"
+  if [[ "$mapped" != 'workspace-ui' ]]; then
+    printf 'CULTURE_SELFTEST_FAIL: ui/src/lib mapped to %s, expected workspace-ui\n' "$mapped" >&2
+    exit 1
+  fi
+  mapped="$(origin_pack_slug 'crates/fnscope-server')"
+  if [[ "$mapped" != 'fnscope-base' ]]; then
+    printf 'CULTURE_SELFTEST_FAIL: server crate mapped to %s, expected fnscope-base\n' "$mapped" >&2
+    exit 1
+  fi
+  mapped="$(origin_pack_slug 'crates/fnscope-server/src/workspace.rs')"
+  if [[ "$mapped" != 'workspace-ui' ]]; then
+    printf 'CULTURE_SELFTEST_FAIL: workspace.rs mapped to %s, expected workspace-ui\n' "$mapped" >&2
+    exit 1
+  fi
+
   # Clean up before the marker so no post-marker error can follow a green.
   rm -rf "$SELFTEST_TMPDIR"
   SELFTEST_TMPDIR=''
@@ -451,6 +528,7 @@ check_process_patterns
 check_drift
 check_doc_headings
 check_contract_symbols
+check_ui_assets
 check_scratch_files
 check_origin_gate
 check_decision_record

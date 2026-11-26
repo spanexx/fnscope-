@@ -25,6 +25,7 @@ if [[ ! -f "$MANIFEST" ]]; then
 fi
 
 node "$REPO_ROOT/scripts/check-manifest.mjs" "$MANIFEST"
+node "$REPO_ROOT/scripts/check-ui-contract.mjs" "$MANIFEST"
 
 # Fixture-specific evidence: count, filtering, hub edges, error spec and side effect.
 node --input-type=commonjs -e '

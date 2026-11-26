@@ -15,6 +15,14 @@ cargo fmt --all -- --check
 echo "[test-all] cargo test --workspace"
 cargo test --workspace
 
+echo "[test-all] ui/build.sh"
+bash "$REPO_ROOT/ui/build.sh"
+
+echo "[test-all] UI checks"
+node "$REPO_ROOT/ui/scripts/check-ui.mjs"
+node "$REPO_ROOT/ui/scripts/check-ui.mjs" --self-test
+(cd "$REPO_ROOT/ui" && npm test)
+
 echo "[test-all] cargo build --release -p fnscope"
 cargo build --release -p fnscope
 
