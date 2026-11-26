@@ -4,11 +4,15 @@
 //! becomes visible without restarting the server. All handlers are total: a missing
 //! or corrupt manifest produces a JSON error response instead of a panic.
 
+use std::io::Read;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 
 #[cfg(test)]
 use axum::body::Body;
@@ -519,6 +523,157 @@ try {
 }
 "#;
 
+/// Runs a command with captured output and a hard deadline, killing its process tree on timeout.
+///
+/// The caller must not remove scratch files until this returns: a timeout path waits for the
+/// direct child to be reaped and signals the whole group before reporting the failure.
+fn run_bounded(mut command: Command, timeout: Duration) -> Result<Output, String> {
+    configure_process_group(&mut command);
+    let mut child = command
+        .spawn()
+        .map_err(|err| format!("could not start: {err}"))?;
+
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let (stdout_tx, stdout_rx) = mpsc::channel();
+    let (stderr_tx, stderr_rx) = mpsc::channel();
+    let stdout_reader = std::thread::spawn(move || {
+        let _ = stdout_tx.send(read_pipe(stdout));
+    });
+    let stderr_reader = std::thread::spawn(move || {
+        let _ = stderr_tx.send(read_pipe(stderr));
+    });
+
+    let deadline = Instant::now() + timeout;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => {}
+            Err(err) => {
+                terminate_process_tree(&mut child);
+                return Err(format!("failed while waiting: {err}"));
+            }
+        }
+
+        if Instant::now() >= deadline {
+            terminate_process_tree(&mut child);
+            // Reader threads unblock when the killed tree closes its pipe handles; they are
+            // detached here so a stuck descendant cannot hold the request open.
+            return Err(format!(
+                "did not finish within {}s; its process tree was killed",
+                timeout.as_secs()
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+
+    // A descendant that inherited a pipe can outlive the direct child, so the output wait
+    // shares the same deadline instead of joining reader threads without a bound.
+    let stdout = receive_pipe(&stdout_rx, deadline, &mut child, timeout)?;
+    let stderr = receive_pipe(&stderr_rx, deadline, &mut child, timeout)?;
+    let _ = stdout_reader.join();
+    let _ = stderr_reader.join();
+
+    Ok(Output {
+        status,
+        stdout,
+        stderr,
+    })
+}
+
+/// Receives one captured pipe before the shared deadline, killing the tree if it stalls.
+fn receive_pipe(
+    receiver: &mpsc::Receiver<Vec<u8>>,
+    deadline: Instant,
+    child: &mut Child,
+    timeout: Duration,
+) -> Result<Vec<u8>, String> {
+    let now = Instant::now();
+    if now < deadline {
+        match receiver.recv_timeout(deadline - now) {
+            Ok(data) => return Ok(data),
+            Err(_) => {}
+        }
+    }
+    terminate_process_tree(child);
+    Err(format!(
+        "did not close its output within {}s; its process tree was killed",
+        timeout.as_secs()
+    ))
+}
+
+/// Reads one captured pipe to end without ever panicking in a helper thread.
+fn read_pipe<R: Read + Send + 'static>(pipe: Option<R>) -> Vec<u8> {
+    let mut buffer = Vec::new();
+    if let Some(mut pipe) = pipe {
+        let _ = pipe.read_to_end(&mut buffer);
+    }
+    buffer
+}
+
+/// Gives the child its own process group so a timeout can signal every descendant.
+#[cfg(unix)]
+fn configure_process_group(command: &mut Command) {
+    command.process_group(0);
+}
+
+/// Non-Unix platforms kill the tree through the platform helper instead.
+#[cfg(not(unix))]
+fn configure_process_group(_command: &mut Command) {}
+
+/// Kills the child and its descendants, then waits for the direct child to be reaped.
+fn terminate_process_tree(child: &mut Child) {
+    let pid = child.id();
+
+    #[cfg(unix)]
+    {
+        // The leading dash targets the group created in `configure_process_group`.
+        let _ = Command::new("kill")
+            .args(["-KILL", "--", &format!("-{pid}")])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/T", "/F", "/PID", &pid.to_string()])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+
+    // Even if the group helper is unavailable, stop and reap the direct child.
+    let _ = child.kill();
+    let _ = child.wait();
+
+    #[cfg(unix)]
+    wait_for_process_group(pid, Duration::from_secs(1));
+}
+
+/// Waits briefly for the killed group to disappear so scratch files are not removed early.
+#[cfg(unix)]
+fn wait_for_process_group(pid: u32, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let alive = Command::new("kill")
+            .args(["-0", "--", &format!("-{pid}")])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false);
+        if !alive || Instant::now() >= deadline {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
 /// Resolves a function's source file and refuses anything outside the scope root.
 ///
 /// Canonicalization follows symlinks, so a manifest cannot point Node at a file outside the
@@ -594,29 +749,19 @@ fn run_node(
 
     let node = node_executable();
     let shown = node.to_string_lossy().into_owned();
-    let child = Command::new(&node)
+    let mut command = Command::new(&node);
+    command
         .arg("--experimental-strip-types")
         .arg(&runner_path)
         .arg(&args_path)
         .arg(&module_path)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|err| format!("node executable '{shown}' could not start: {err}"))?;
-
-    // The wait is bounded with a channel rather than a platform kill timeout: `Child`
-    // is not `Sync` and there is no portable way to terminate a whole process group,
-    // so a timed-out child is left to finish on its own while the temp dir is removed.
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
-        let _ = tx.send(child.wait_with_output());
-    });
-
-    let output = rx
-        .recv_timeout(Duration::from_secs(5))
-        .map_err(|err| format!("node '{shown}' did not finish within 5s ({err})"))?
-        .map_err(|err| format!("node '{shown}' failed while waiting: {err}"))?;
+        .stderr(Stdio::piped());
+    // `run_bounded` only returns after the child is reaped, so the scratch directory
+    // created above is never removed while the process tree can still read it.
+    let output = run_bounded(command, Duration::from_secs(5))
+        .map_err(|reason| format!("node '{shown}' {reason}"))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -950,6 +1095,68 @@ mod tests {
                 false
             }
         }
+    }
+
+    /// Reports whether a pid is still present, used to prove a group kill reached descendants.
+    #[cfg(target_os = "linux")]
+    fn process_exists(pid: i32) -> bool {
+        Path::new(&format!("/proc/{pid}")).exists()
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn timed_out_process_tree_is_killed() {
+        let dir =
+            std::env::temp_dir().join(format!("fnscope-kill-{}-{}", std::process::id(), stamp()));
+        std::fs::create_dir_all(&dir).expect("scratch dir must be creatable");
+        let shell_pid_path = dir.join("shell.pid");
+        let child_pid_path = dir.join("child.pid");
+
+        let mut command = Command::new("sh");
+        command.arg("-c").arg(format!(
+            "echo $$ > '{}'; sleep 30 & echo $! > '{}'; wait",
+            shell_pid_path.display(),
+            child_pid_path.display()
+        ));
+
+        let started = Instant::now();
+        let error = run_bounded(command, Duration::from_millis(700))
+            .expect_err("a 30-second tree must hit the 700ms deadline");
+        assert!(
+            error.contains("did not finish") && error.contains("process tree was killed"),
+            "unexpected timeout error: {error}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "the timeout path must stay bounded"
+        );
+
+        let shell_pid: i32 = std::fs::read_to_string(&shell_pid_path)
+            .expect("shell pid file")
+            .trim()
+            .parse()
+            .expect("numeric shell pid");
+        let child_pid: i32 = std::fs::read_to_string(&child_pid_path)
+            .expect("child pid file")
+            .trim()
+            .parse()
+            .expect("numeric child pid");
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while Instant::now() < deadline && (process_exists(shell_pid) || process_exists(child_pid))
+        {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            !process_exists(shell_pid),
+            "group leader {shell_pid} survived the timeout"
+        );
+        assert!(
+            !process_exists(child_pid),
+            "background child {child_pid} survived the group kill"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]
