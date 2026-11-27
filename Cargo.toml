@@ -48,3 +48,6 @@ fnscope-parser = { path = "crates/fnscope-parser" }
 fnscope-core = { path = "crates/fnscope-core" }
 fnscope-enrich = { path = "crates/fnscope-enrich" }
 fnscope-server = { path = "crates/fnscope-server" }
+
+[profile.release]
+strip = true
