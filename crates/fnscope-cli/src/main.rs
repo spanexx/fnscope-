@@ -347,6 +347,82 @@ mod tests {
     }
 
     #[test]
+    fn shared_call_edge_stays_inside_its_scope() {
+        let out = TestDir::new("call-edge");
+        let plan = fixture_plan(out.path());
+        scan_plan(&plan, out.path(), false, None).expect("both scopes scan");
+
+        let alpha = fnscope_core::read_manifest(&out.path().join("scopes/alpha/fn-graph.json"))
+            .expect("alpha manifest");
+        let beta = fnscope_core::read_manifest(&out.path().join("scopes/beta/fn-graph.json"))
+            .expect("beta manifest");
+
+        let alpha_entry = alpha
+            .functions
+            .iter()
+            .find(|function| function.name == "alphaEntry")
+            .expect("alpha entry");
+        let alpha_shared = alpha
+            .functions
+            .iter()
+            .find(|function| function.name == "shared")
+            .expect("alpha shared");
+        let beta_entry = beta
+            .functions
+            .iter()
+            .find(|function| function.name == "betaEntry")
+            .expect("beta entry");
+        let beta_shared = beta
+            .functions
+            .iter()
+            .find(|function| function.name == "shared")
+            .expect("beta shared");
+
+        let alpha_call = alpha_entry
+            .steps
+            .iter()
+            .find(|step| step.calls_fn_id.is_some())
+            .expect("alpha entry has a call step");
+        assert_eq!(
+            alpha_call.calls_fn_id.as_deref(),
+            Some(alpha_shared.id.as_str()),
+            "alpha's entry must resolve to alpha's shared"
+        );
+        assert!(
+            alpha
+                .functions
+                .iter()
+                .any(|function| Some(&function.id) == alpha_call.calls_fn_id.as_ref()),
+            "alpha's call target must exist inside alpha's manifest"
+        );
+        assert!(alpha_shared
+            .called_by
+            .iter()
+            .any(|caller| caller.fn_id.as_deref() == Some(alpha_entry.id.as_str())));
+
+        let beta_call = beta_entry
+            .steps
+            .iter()
+            .find(|step| step.calls_fn_id.is_some())
+            .expect("beta entry has a call step");
+        assert_eq!(
+            beta_call.calls_fn_id.as_deref(),
+            Some(beta_shared.id.as_str()),
+            "beta's entry must resolve to beta's shared"
+        );
+        assert!(
+            beta.functions
+                .iter()
+                .any(|function| Some(&function.id) == beta_call.calls_fn_id.as_ref()),
+            "beta's call target must exist inside beta's manifest"
+        );
+        assert!(beta_shared
+            .called_by
+            .iter()
+            .any(|caller| caller.fn_id.as_deref() == Some(beta_entry.id.as_str())));
+    }
+
+    #[test]
     fn shared_name_keeps_one_identity_per_scope_and_different_bodies() {
         let out = TestDir::new("shared-identity");
         let plan = fixture_plan(out.path());

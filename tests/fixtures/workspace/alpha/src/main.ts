@@ -4,7 +4,8 @@
 // and invoked independently.
 export function alphaEntry(x: number): number {
   // 1. Call the local helper so the scanner records a real alpha-internal edge.
-  return shared(x) + 1;
+  const doubled = shared(x);
+  return doubled + 1;
 }
 
 // Alpha's `shared`: doubles the input, then the entry adds one.

@@ -24,6 +24,10 @@ pub const SCOPES_DIR: &str = "scopes";
 const WORKSPACE_VERSION: u32 = 1;
 
 /// File name users are expected to pass to `--workspace`.
+///
+/// Auto-discovery is intentionally not enabled (the path stays an explicit CLI
+/// choice); the constant names the file in tests and for future help text.
+#[allow(dead_code)]
 pub const WORKSPACE_FILE: &str = "fnscope.workspace.json";
 
 /// On-disk shape of `fnscope.workspace.json`.
