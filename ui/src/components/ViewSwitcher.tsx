@@ -28,7 +28,10 @@ export default function ViewSwitcher({ view, onChange }: ViewSwitcherProps) {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key !== 'Escape') return;
+      // The menu is the top layer; Escape must not also close a docked drawer.
+      event.stopPropagation();
+      setOpen(false);
     };
     document.addEventListener('pointerdown', closeOnPointer);
     document.addEventListener('keydown', closeOnEscape);
