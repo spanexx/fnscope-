@@ -33,6 +33,10 @@ real server duration and a `simulated: true` payload from the simulate scope.
 
 - Independent reviews: J4 CLI PASS; J5 explorer PASS; J6 views PASS after one
   cosmetic fix (`f168c97`); J7 invoke PASS.
+- Final integration review of `47f22ca` + `d3cf48a` returned **PASS** with
+  `UI_CHECK_OK (52 source files, source only)`. Its one non-blocking finding
+  (Escape in the mobile view menu could also close a docked drawer) is fixed in
+  `8eb6a11`.
 - Drift D-7 (Preview → Story) and D-9…D-12 (mobile view control, CSP inline
   script, literal `\u00b7`, fixture call edge) are Resolved in `docs/drift.md`.
 - The culture gate caught a test-only absolute path in the CLI before commit;
