@@ -14,28 +14,33 @@
 
 This file is the single entry point for a human who wants to know where the build
 actually is. Every number and marker below is quoted from a file in this repo,
-with the path and (where useful) the line. Nothing here was re-measured for this
-document: it is a report of recorded evidence, not a fresh gate run.
+with the path and (where useful) the line. The workspace-UI gates were re-run on
+2026-11-27 at code HEAD `cefc072` (this status refresh is `8a0ffbe`); the older
+base sections quote recorded evidence rather than a fresh run.
 
 Evidence sources: `README.md`, `AGENTS.md`, `.reports/goal-build-fnscope.md`
-(the 42-iteration ledger), `docs/drift.md`,
+(the 42-iteration base ledger), `.reports/goal-workspace-ui.md` (the 11
+workspace-UI iterations), `docs/drift.md`,
 `docs/features/fnscope-base/{GRILL.txt,PRD-TRD.md,IMPL.md,VERIFY.md}`,
-`docs/concepts/language-adapter.md`, `docs/contract/{adapter-api,rust-api}.md`,
-`docs/workflows/reviewer-process.md`, `docs/ethics/lessons.md`,
-`.reports/reviews/*.md`, `.reports/ui-browser.md`, `Cargo.toml`,
-`crates/fnscope-parser/src/adapter.rs`, `crates/fnscope-core/src/scan.rs`, and a
-read-only `git log --oneline -12` / `git status --short --untracked-files=all`
-taken in WSL Debian while writing this file.
+`docs/features/workspace-ui/{GRILL-workspace-ui.txt,PRD-TRD-workspace-ui.md,IMPL-workspace-ui.md,VERIFY-workspace-ui.md,simulate.sh}`,
+`.reports/ui-workspace-audit.md`, `docs/concepts/language-adapter.md`,
+`docs/contract/{adapter-api,rust-api}.md`, `docs/workflows/reviewer-process.md`,
+`docs/ethics/lessons.md`, `.reports/reviews/*.md`, `.reports/ui-browser.md`,
+`Cargo.toml`, `crates/fnscope-parser/src/adapter.rs`,
+`crates/fnscope-core/src/scan.rs`, and a read-only
+`git log --oneline -12` / `git status --short --untracked-files=all` taken in
+WSL Debian while writing this file.
 
 ## TL;DR
 
 - fnscope is built end to end in Rust: a local-first, single binary with the
   React explorer compiled into it and no account, cloud service or telemetry
-  (`README.md:3-5`, `README.md:126-134`). There are six workspace crates plus
+  (`README.md:3-5`, `README.md:159-167`). There are six workspace crates plus
   `ui/` (`Cargo.toml:1-9`).
-- The work spans 42 recorded orchestrator iterations from 2026-11-25 to
-  2026-11-26 (`.reports/goal-build-fnscope.md:52-393`). Failures, pivots and
-  verdicts are all still in that ledger, including false greens that were later
+- The work spans 42 recorded base iterations (2026-11-25 to 2026-11-26,
+  `.reports/goal-build-fnscope.md`) plus 11 workspace-UI iterations
+  (2026-11-27, `.reports/goal-workspace-ui.md`). Failures, pivots and verdicts
+  are all still in both ledgers, including false greens that were later
   corrected.
 - **Coverage, stated precisely.** `README.md:5` and `:18` now say "13 named
   languages … across 16 file suffixes", matching the code. The four numbers
@@ -48,28 +53,35 @@ taken in WSL Debian while writing this file.
   polyglot *scan that actually ran* — `.ts`, `.js`, `.rs`, `.py`, `.go`,
   `.java`, `.c`, `.cpp`, `.cs`, `.kt`, `.rb`, `.php`, `.swift`
   (`.reports/goal-build-fnscope.md:389`).
-- Final gate: `cargo test --workspace` -> 233 tests green, of which 176 are
-  parser tests (`.reports/goal-build-fnscope.md:389`;
-  `docs/features/fnscope-base/VERIFY.md:59`). The 13-extension mixed scan
-  produced 78 functions, 159 steps, 33 resolved calls, 38 caller edges,
-  23 error facts and 0 dangling edges (same two sources).
-- Drift D-1 through D-6 are all `Resolved` (`docs/drift.md:23-61`). The eleven
-  lessons L1–L11 are enforced by
+- Final gate on workspace code HEAD `cefc072`: `cargo test --workspace` -> **270
+  passed, 0 failed**, of which 176 are parser tests, 26 CLI, 26 server. The
+  base 233-test figure below is the 2026-11-26 baseline, before the workspace
+  server/CLI tests landed. The 13-extension mixed scan still produced 78
+  functions, 159 steps, 33 resolved calls, 38 caller edges, 23 error facts and
+  0 dangling edges (`.reports/goal-build-fnscope.md`;
+  `docs/features/fnscope-base/VERIFY.md`).
+- Drift D-1 through D-12 are all `Resolved` (`docs/drift.md`). D-7 (Preview ->
+  Story) and D-9…D-12 (mobile view control, CSP inline script, literal
+  `\u00b7`, fixture call edge) closed on 2026-11-27 with the workspace UI. The
+  eleven lessons L1–L11 are enforced by
   `scripts/check-culture.sh --self-test`, the reviewer checklist and the
-  orchestrator's compile gate (`docs/ethics/lessons.md:13-27`).
-- Recorded gate markers: `FMT_STATUS=0`, `ALL_TESTS_OK`,
+  orchestrator's compile gate (`docs/ethics/lessons.md`).
+- Recorded gate markers on the final workspace tree: `ALL_TESTS_OK`,
   `MANIFEST_OK: 9 functions, 8 call edges`, `SERVER_SMOKE_OK`,
-  `ENRICH_E2E_OK`, `CULTURE_OK` and `ADAPTER_GATE_STATUS=0`
-  (`docs/features/fnscope-base/VERIFY.md:7-20`, `:51-63`;
-  `.reports/goal-build-fnscope.md:387-393`).
-- Real browser audit: 7 PASS, 1 FAIL, 1 PARTIAL across nine checks, with three
-  bugs; the targeted re-audit was 6 PASS, 0 FAIL
-  (`.reports/ui-browser.md:188-190`, `:289-290`).
-- Committed in discrete logical batches: eight conventional commits sit on top
-  of `8835585 initial commit` in current history. At the time of writing the
-  docs batch (including this file) is **not committed**; `git status` shows ten
-  modified docs files plus this new file. There is no technical gate blocker —
-  only the human go on further commits/tags.
+  `WORKSPACE_SIM_OK`, `UI_CONTRACT_OK` (2 functions for the workspace fixture),
+  `UI_CHECK_OK (52 source files)`, `CULTURE_SELFTEST_OK`, `CULTURE_OK`,
+  `ENRICH_E2E_OK` and `ADAPTER_GATE_STATUS=0`
+  (`docs/features/workspace-ui/VERIFY-workspace-ui.md`, `README.md`).
+- Real workspace browser audit: 12 scenarios PASS/PARTIAL, 1 deferred (deep
+  links), with 375/768/1440 measurements and screenshots
+  (`.reports/ui-workspace-audit.md`, `.reports/ui-workspace-audit/`). The
+  earlier single-scope audit (7 PASS / 1 FAIL / 1 PARTIAL, then 6 PASS / 0 FAIL)
+  remains historical evidence in `.reports/ui-browser.md`.
+- Committed in discrete logical batches: 44 commits on `feature/workspace-ui`
+  over `main` at `69998d2`. The latest code commit is `cefc072`; this status
+  refresh is the only commit after it. The working tree is clean and no docs
+  batch is pending. `main` is untouched; the human PR/merge gate is the only
+  remaining step.
 
 ## What the tool does today
 
@@ -83,13 +95,18 @@ local web explorer with isolated project scopes and four views — Story, 1-Hop,
 Split and Raw — plus a sandbox invoke drawer (`README.md:5`,
 `docs/features/workspace-ui/PRD-TRD-workspace-ui.md:21-124`).
 
-Two commands cover the product surface:
+Two commands cover the product surface, and `open` can serve one project or a
+workspace of isolated scopes:
 
 - `fnscope scan <TARGET_DIR>` writes the graph and, optionally, enriched text
   to `.fnscope/`.
 - `fnscope open <TARGET_DIR>` (or a bare target) scans once, serves the UI on
-  `127.0.0.1:4310`, and watches for file changes (`README.md:51-66`;
+  `127.0.0.1:4310`, and watches for file changes (`README.md:51-97`;
   `docs/contract/rust-api.md:203-210`).
+- `fnscope open --workspace fnscope.workspace.json` scans each configured scope
+  into `.fnscope/scopes/<id>/fn-graph.json` and serves `/api/scopes`,
+  `/api/scopes/<id>/fn-graph.json` and `/api/scopes/<id>/invoke`. Without a
+  workspace config the single-scope behavior is unchanged.
 
 The base TS/JS feature and the polyglot addendum are both marked `SHIPPED` in
 `docs/features/fnscope-base/PRD-TRD.md:3` and `:221-227`. `IMPL.md:3-10` marks
@@ -102,16 +119,16 @@ The workspace has six crates (`Cargo.toml:2-9`), each with one job:
 
 | Crate | Owns | Evidence |
 | --- | --- | --- |
-| `fnscope-model` | The shared JSON schema (`FnGraph`, `FnRecord`, `Step`, `EnrichCache`, invoke types), camelCase serde renames and `FnGraph::validate` | `README.md:128`; `docs/contract/rust-api.md:7-92` |
-| `fnscope-parser` | One grammar-owning adapter per language behind `LanguageAdapter`; returns only contract shapes | `README.md:129`; `crates/fnscope-parser/src/adapter.rs:27-58` |
-| `fnscope-core` | File walk, ids, `ast_hash`, name-to-id edges, reverse `called_by`, manifest I/O — no language knowledge | `README.md:130`; `docs/concepts/language-adapter.md:48-65` |
-| `fnscope-enrich` | Hash-cached LLM enrichment, mock/HTTP/noop backends, cache read/write | `README.md:131`; `docs/contract/rust-api.md:159-176` |
-| `fnscope-server` | axum routes, `include_str!`-embedded UI assets, `/api/invoke` in simulate or node mode | `README.md:132`; `docs/contract/rust-api.md:180-201` |
-| `fnscope-cli` | clap `scan` / `open`, 500 ms polling watcher, progress and errors | `README.md:133`; `docs/contract/rust-api.md:203-210` |
+| `fnscope-model` | The shared JSON schema (`FnGraph`, `FnRecord`, `Step`, `EnrichCache`, invoke types), camelCase serde renames and `FnGraph::validate` | `README.md:160`; `docs/contract/rust-api.md:7-92` |
+| `fnscope-parser` | One grammar-owning adapter per language behind `LanguageAdapter`; returns only contract shapes | `README.md:161`; `crates/fnscope-parser/src/adapter.rs:27-58` |
+| `fnscope-core` | File walk, ids, `ast_hash`, name-to-id edges, reverse `called_by`, manifest I/O — no language knowledge | `README.md:162`; `docs/concepts/language-adapter.md:48-65` |
+| `fnscope-enrich` | Hash-cached LLM enrichment, mock/HTTP/noop backends, cache read/write | `README.md:163`; `docs/contract/rust-api.md:159-176` |
+| `fnscope-server` | axum routes, `include_str!`-embedded UI assets, `/api/invoke` in simulate or node mode | `README.md:164`; `docs/contract/rust-api.md:180-201` |
+| `fnscope-cli` | clap `scan` / `open`, 500 ms polling watcher, progress and errors | `README.md:165`; `docs/contract/rust-api.md:203-210` |
 
 `ui/` is the React explorer; its built files in `ui/dist/` are embedded into
 the binary at compile time, so there is no runtime Node requirement
-(`README.md:134`; `docs/contract/rust-api.md:187-189`).
+(`README.md:166`; `docs/contract/rust-api.md:187-189`).
 
 **The seam.** `LanguageAdapter` is six methods — `id`, `extensions`,
 `discover`, `analyze`, `collect_types`, `resolve_return_fields`
@@ -184,7 +201,7 @@ TypeScript 0.23.
 
 ## CLI and artifacts
 
-Exact flags from `--help` are reproduced in `README.md:31-66`.
+Exact flags from `--help` are reproduced in `README.md:31-98`.
 
 `fnscope scan [OPTIONS] <TARGET_DIR>`:
 
@@ -204,10 +221,13 @@ Exact flags from `--help` are reproduced in `README.md:31-66`.
 | `--host <HOST>` | default `127.0.0.1` |
 | `--no-watch` | disable the live file watcher |
 | `--invoke <INVOKE>` | `simulate` (default) or `node` |
+| `--workspace <FILE>` | serve the scopes listed in a `fnscope.workspace.json` |
+| `--scope <ID=PATH>` | add or override one scope; repeatable |
+| `--default-scope <ID>` | pick the scope used by the compatibility routes |
 | `--enrich`, `--model` | enrichment controls |
 
 `fnscope <TARGET>` is shorthand for `fnscope open <TARGET>`, and top-level
-flags work in both forms (`README.md:66`; `docs/contract/rust-api.md:205-210`).
+flags work in both forms (`README.md:69`; `docs/contract/rust-api.md:205-210`).
 
 Default includes are 16 globs — `**/*.ts`, `**/*.tsx`, `**/*.js`, `**/*.jsx`,
 `**/*.rs`, `**/*.py`, `**/*.go`, `**/*.java`, `**/*.c`, `**/*.cpp`, `**/*.cc`,
@@ -217,31 +237,33 @@ Default includes are 16 globs — `**/*.ts`, `**/*.tsx`, `**/*.js`, `**/*.jsx`,
 `**/__pycache__/**`, the `.test.ts` / `.test.tsx` / `.spec.ts` / `.spec.tsx`
 patterns and `**/.*/**` (`scan.rs:50-63`).
 
-Artifacts under `.fnscope/` (`README.md:90-97`):
+Artifacts under `.fnscope/` (`README.md:121-130`):
 
 - `fn-graph.json` — the full graph: functions, parameters, steps, return
   shapes, errors, call edges and source code. This is what the UI reads.
+- `scopes/<id>/fn-graph.json` — one manifest per configured workspace scope,
+  written only in workspace mode.
 - `enrich-cache.json` — LLM cache keyed by each function's `astHash`.
 
 `astHash` is `sha256:<64 hex>` over source with comments and all whitespace
 outside string/template literals stripped (`docs/contract/rust-api.md:152-154`;
-`README.md:97`).
+`README.md:130`).
 
 ## Enrichment and caching
 
 Enrichment is off by default; add `--enrich` to `scan` or `open`
-(`README.md:99-101`). The first non-empty key among `OPENAI_API_KEY`,
+(`README.md:131-141`). The first non-empty key among `OPENAI_API_KEY`,
 `GEMINI_API_KEY` and `ANTHROPIC_API_KEY` is used; `FNSCOPE_LLM_BASE_URL`
 points at a chat-completions endpoint (a plain `http://127.0.0.1:<port>/...`
 mock is supported) and `FNSCOPE_LLM_MODEL` overrides the default model, with
-`--model NAME` taking precedence (`README.md:103-107`).
+`--model NAME` taking precedence (`README.md:135-139`).
 
 Cache behaviour: key = `fn.ast_hash`. A hit overwrites description, step
 titles/details and parameter defaults with zero API calls; a miss sends only
 the compact AST skeleton and stores the reply under that hash
 (`docs/contract/rust-api.md:169-178`; `PRD-TRD.md:140-150`). With no key,
 `--enrich` warns and falls back to deterministic text with zero API calls;
-`--model NAME` without a key exits with a readable error (`README.md:108`).
+`--model NAME` without a key exits with a readable error (`README.md:172`).
 `NoopEnricher` is the deterministic zero-call fallback and `MockBackend` counts
 calls for tests (`docs/contract/rust-api.md:163-167`).
 
@@ -260,12 +282,12 @@ change and a new call after a semantic edit
 - **`simulate` (default)** builds one `TraceEntry` per step with
   `status: "simulated"` and `output: step.output`, plus
   `data: { simulated: true, function, inputs, expectedReturnType }`. It never
-  runs project code (`README.md:114`; `docs/contract/rust-api.md:200`).
+  runs project code (`README.md:174`; `docs/contract/rust-api.md:200`).
 - **`node`** writes a temporary runner, imports the target TS/JS module and
   calls the named export (class methods as `Class.method`), passing the module
   path and arguments as argv rather than embedding a `file:///` URL. On any
   failure it falls back to the simulated trace and adds an `error` field; the
-  request does not fail (`README.md:115-117`; `docs/contract/rust-api.md:201`;
+  request does not fail (`README.md:143-150`; `docs/contract/rust-api.md:201`;
   `.reports/goal-build-fnscope.md:92-106`).
 
 Real execution was verified with native Node 24 selected through
@@ -281,10 +303,10 @@ v20.20.2 and could not import `.ts`; Windows Node was v24.20.0
 **Only TypeScript/JavaScript are executed.** For Rust, Python, Go, Java, C,
 C++, C#, Kotlin, Ruby, PHP and Swift there is no executor: invoking those
 functions returns the deterministic simulated trace (usually with an `error`
-field explaining the fallback) (`README.md:138`; `PRD-TRD.md:250-257`;
+field explaining the fallback) (`README.md:170`; `PRD-TRD.md:250-257`;
 `docs/features/fnscope-base/VERIFY.md:71-77`). The `runtime` labels `universal`
 and `node20` are carried data describing the recorded target environment, not
-a promise that Node can run that language (`README.md:140`).
+a promise that Node can run that language (`README.md:172`).
 
 ## Local server and UI
 
@@ -343,13 +365,18 @@ commands was re-run for this status file.
 | Formatting | `cargo fmt --all -- --check` | `FMT_STATUS=0` | `docs/features/fnscope-base/VERIFY.md:12` |
 | Workspace tests (base, with native Node 24) | `cargo test --workspace`, `FNSCOPE_NODE` set | `CARGO_TEST_STATUS=0`; 72 tests, 0 failures | `VERIFY.md:11`, `:17-20` |
 | Workspace tests (final polyglot gate) | `cargo test --workspace` | `ADAPTER_GATE_STATUS=0`; 233 tests (parser 176) | `.reports/goal-build-fnscope.md:387-389`; `VERIFY.md:59` |
-| Full repo gate | `bash scripts/test-all.sh` | `ALL_TESTS_OK`; `MANIFEST_OK: 9 functions, 8 call edges`; `SERVER_SMOKE_OK` | `VERIFY.md:13`, `:24-28`; `README.md:123` |
-| Enrichment end to end | `bash scripts/enrich-e2e.sh` | `ENRICH_E2E_OK`: 9 first-run calls, 0 unchanged, 0 formatting-only, new call on semantic change | `VERIFY.md:14`; `README.md:124` |
+| Full repo gate | `bash scripts/test-all.sh` | `ALL_TESTS_OK`; `MANIFEST_OK: 9 functions, 8 call edges`; `SERVER_SMOKE_OK` | `docs/features/workspace-ui/VERIFY-workspace-ui.md`; `README.md` |
+| Workspace simulation | `bash docs/features/workspace-ui/simulate.sh` | `WORKSPACE_SIM_OK`; `UI_CONTRACT_OK (2 functions)` | `docs/features/workspace-ui/VERIFY-workspace-ui.md` |
+| Workspace tests | `cargo test --workspace` | 270 passed, 0 failed (parser 176, CLI 26, server 26) | code HEAD `cefc072` |
+| UI source / dist | `node ui/scripts/check-ui.mjs` | `UI_CHECK_OK (52 source files)` | final HEAD |
+| UI helper tests | `npm --prefix ui test` | 5 pass, 0 fail | final HEAD |
+| Workspace browser audit | in-app browser + headless Chrome CDP | 12 PASS/PARTIAL, deep links deferred; 375/768/1440 no overflow | `.reports/ui-workspace-audit.md` |
+| Enrichment end to end | `bash scripts/enrich-e2e.sh` | `ENRICH_E2E_OK`: 9 first-run calls, 0 unchanged, 0 formatting-only, new call on semantic change | `VERIFY.md:14`; `README.md:156` |
 | Culture gate | `bash scripts/check-culture.sh --self-test` then `bash scripts/check-culture.sh` | `CULTURE_SELFTEST_OK`, then eight `[PASS]` lines and `CULTURE_OK` | `.reports/goal-build-fnscope.md:224` |
 | Culture gate (final) | `bash scripts/check-culture.sh` | `CULTURE_OK` | `.reports/goal-build-fnscope.md:389`; `VERIFY.md:62` |
 | 13-extension mixed scan | real scan of the polyglot fixture | 78 functions, 159 steps, 33 resolved calls, 38 caller edges, 23 error facts, 0 dangling | `.reports/goal-build-fnscope.md:389`; `VERIFY.md:60` |
 | Real UI in a browser | release binary served on localhost; audit in `.reports/ui-browser.md` | first 7 PASS / 1 FAIL / 1 PARTIAL, 3 bugs; re-audit 6 PASS / 0 FAIL | `.reports/ui-browser.md:188-190`, `:289-290` |
-| Drift closure | `docs/drift.md` | D-1 through D-6 `Resolved` | `VERIFY.md:63`; `docs/drift.md:27-61` |
+| Drift closure | `docs/drift.md` | D-1 through D-12 `Resolved` | `docs/drift.md` |
 | This file's line endings | `tr -cd '\r' < docs/STATUS.md \| wc -c` | `CR_COUNT=0` (checked 2026-11-26 with a single-quoted script) | this document |
 
 Intermediate gate failures are also recorded, not hidden: `CARGO_CHECK_STATUS=101`
@@ -361,8 +388,12 @@ The final green at iteration 42 is the current verdict
 
 ## Commits so far (from git log)
 
-`git log --oneline -12` returned nine lines (the repo has nine commits), quoted
-verbatim:
+The branch has 44 commits over `main` at `69998d2` (`docs:`). The base build's
+first nine commits are history; the workspace-UI wave on top is listed after
+them. The latest code commit is `cefc072`; this status refresh sits on top of
+it.
+
+Base history (2026-11-25/26), quoted from the base ledger:
 
 ```text
 d6b02cf feat:
@@ -375,6 +406,30 @@ fa5419e docs:
 ff793af docs:
 8835585 initial commit
 ```
+
+Workspace-UI wave (2026-11-27), newest first:
+
+```text
+cefc072 docs(workspace-ui): record the final integration review
+8eb6a11 fix(ui): let Escape close only the mobile view menu
+89a858e docs(workspace-ui): record the audit, verify and drift closure
+8c4f1d4 test(cli): prove two-scope call edges stay isolated
+d3cf48a fix(ui): keep palette bootstrap in the CSP and finish mobile polish
+7f8e057 fix(cli): waive test-only absolute path
+47f22ca feat(ui): wire explorer, views and drawer into the shell
+f6dcb08 feat(cli): add workspace scope configuration
+c4f97f4 feat(ui): add invoke drawer with real trace
+f2c0bb0 fix(ui): remove duplicate callee parentheses
+8cdff1c feat(ui): add story, 1-hop, split and raw views
+a893f92 feat(ui): add entry-point and module explorer
+19a089c chore(guardrails): cover scope routes and waive test path
+86f9a09 fix(server): kill timed-out node process tree
+b0334ae feat(server): add workspace scope registry and scoped routes
+...
+```
+
+The working tree is clean. Unlike the 2026-11-26 baseline, there is no
+uncommitted docs batch; the human PR/merge gate is the only remaining step.
 
 | Commit | Date | Shortstat | What the batch added |
 | --- | --- | --- | --- |
@@ -391,18 +446,17 @@ ff793af docs:
 Two honest notes about this history. First, the actual commit subjects are only
 the conventional prefixes (`feat:`, `docs:`, `refactor:`); the fuller subjects
 in `.reports/goal-build-fnscope.md` describe the batches, not the git subject
-lines. Second, current history has eight conventional commits after the
+lines. Second, the **base** history has eight conventional commits after the
 initial commit, not six, and the ledger's `4c26063` is no longer present — the
-culture batch now appears as `fa5419e`.
+culture batch now appears as `fa5419e`. The workspace-UI wave uses descriptive
+subjects and is listed separately above.
 
-At the time of writing, `git status --short --untracked-files=all` shows ten
-modified files — `.reports/goal-build-fnscope.md`, `README.md`,
-`docs/contract/adapters/{csharp,kotlin,php,swift}.md`, `docs/drift.md`,
-`docs/features/fnscope-base/{IMPL,PRD-TRD,VERIFY}.md` — plus the new
-`docs/STATUS.md`. The docs batch (J44 plus this file) is staged by nobody and
-committed by nobody; the human go is still required.
+The base table above describes the 2026-11-26 history; its commit subjects are
+minimal because the descriptive subjects live in the base ledger. The
+workspace-UI wave uses descriptive conventional subjects and is fully committed.
+`git status --short --untracked-files=all` is empty on this status refresh.
 
-## Decisions and drift (D-1..D-6, L1..L11 summary)
+## Decisions and drift (D-1..D-12, L1..L11 summary)
 
 Founding decisions, all made under delegated authority ("ask me no questions
 make all decisions yourself") and recorded at `.reports/goal-build-fnscope.md:19-25`:
@@ -418,7 +472,7 @@ make all decisions yourself") and recorded at `.reports/goal-build-fnscope.md:19
   native watcher crate.
 
 Drift entries (all `Resolved`; full text and `Verified by:` notes in
-`docs/drift.md:27-61`):
+`docs/drift.md`):
 
 | ID | Gap | Resolution evidence (short) |
 | --- | --- | --- |
@@ -428,6 +482,12 @@ Drift entries (all `Resolved`; full text and `Verified by:` notes in
 | D-4 | A CR-normalization command treated `\r$` as a literal trailing `r`, truncating identifiers; `rustfmt --check` and a reviewer PASS were both false | Re-merged 13 files with `cp` only, 0 CR bytes, `ADAPTER_GATE_STATUS=0` with 101 tests, and a documented re-review PASS (`drift.md:45-49`; `.reports/reviews/J21.md:38-79`) |
 | D-5 | Go adapter doc mapped `short_var_declaration` to Transform even when the initializer calls a function | `step_kind()` returns Call when `has_call()` is true, doc corrected, gate green at 127 tests (`drift.md:51-55`) |
 | D-6 | `tree-sitter-kotlin` 0.3.8 pins tree-sitter <0.23 and cannot coexist with workspace 0.25 under `links = "tree-sitter"`, despite a sound pointer bridge | Replaced with `tree-sitter-kotlin-ng 1.1`, removed all unsafe bridge code, 14 Kotlin tests preserved, 233-test gate green (`drift.md:57-61`) |
+| D-7 | README/base PRD promised a Preview view; the validated design calls the primary view Story | Story rendered and audited; README, base PRD and Rust PRD renamed; dead `FunctionExplorer.tsx` removed (`drift.md`) |
+| D-8 | Server comment promised graph validation before serving | `FnGraph::validate()` called before serving; corrupt-manifest test proves the 500 + `available:false` behavior |
+| D-9 | PRD requires the view switcher to stay reachable at narrow widths | Compact mobile view menu below 640px; CDP measured all header controls inside 375px with no overflow |
+| D-10 | `script-src 'self'` forbade the inline palette bootstrap | External `/theme.js` served from an embedded asset; console clean, theme still persists |
+| D-11 | `\u00b7` in JSX text rendered literally in two components | Both use `{'\u00b7'}`; browser footer and scope card read correctly |
+| D-12 | Fixture claimed a call edge the TypeScript parser never records for `return` statements | Fixtures call the helper in a declaration; `shared_call_edge_stays_inside_its_scope` and `WORKSPACE_SIM_OK` prove it |
 
 Lessons L1–L11, one line each from `docs/ethics/lessons.md:13-27`:
 
@@ -457,25 +517,34 @@ bridge judged sound), and `lang-batch-triage.md` (CODE 7, TEST 1, BOTH 1).
 
 ## Known limits and honest caveats
 
+- **Workspace UI limits.** IBM Plex fonts are not bundled yet, so the UI falls
+  back to system fonts while staying fully offline (no CDN). Deep links
+  (`#/scope/<id>/fn/<fnId>/<view>`) are deferred by PRD Scenario 13. The
+  two-scope fixture is simulate-only, so live Node invoke is covered by server
+  tests and the earlier single-scope audit, not by the workspace browser audit.
+  A zero-function scope was not produced for a screenshot; the shared empty
+  state is source-reviewed. The caller-jump breadcrumb keeps the validated
+  prototype behavior (prepend the caller, last crumb stays the previous
+  function).
 - **Only TS/JS are executed.** `--invoke node` is a TypeScript/JavaScript
   runner. The other languages are inspected and navigated but invoking one
-  returns the simulated trace (`README.md:138`; `PRD-TRD.md:250-257`).
+  returns the simulated trace (`README.md:170`; `PRD-TRD.md:250-257`).
 - **Node invocation is best effort.** An incompatible Node falls back to a
   simulated trace with an `error` field instead of failing the request
-  (`README.md:117`, `:143`).
+  (`README.md:150`, `:143`).
 - **Constructors are listed as functions** alongside regular methods
-  (`README.md:142`; `docs/features/fnscope-base/VERIFY.md:78-80`).
+  (`README.md:174`; `docs/features/fnscope-base/VERIFY.md:78-80`).
 - **Cross-file type resolution is best effort.** Return fields are unpacked
   only from aliases, interfaces, structs and enums declared inside the scanned
   set; imported or external types fall back to their written names
-  (`README.md:141`; `VERIFY.md:81-84`).
+  (`README.md:173`; `VERIFY.md:81-84`).
 - **Kotlin uses `tree-sitter-kotlin-ng`**, not the older `tree-sitter-kotlin`
-  that pins an incompatible tree-sitter (`README.md:139`; `drift.md:57-61`).
+  that pins an incompatible tree-sitter (`README.md:171`; `drift.md:57-61`).
   The Swift (0.7.4), PHP (0.25) and Kotlin-ng (1.1) grammar crates are older
   pins but were compiled and tested in the final gate (`Cargo.toml:37-42`;
   `.reports/goal-build-fnscope.md:387-389`).
 - **Runtime labels are data, not executors.** `universal` and `node20` are
-  recorded environment labels for every language (`README.md:140`).
+  recorded environment labels for every language (`README.md:172`).
 - **Counting conventions, not a discrepancy.** `README.md:5` and `:18` now state
   16 default suffixes, agreeing with `scan.rs:29-46` and `adapter.rs:128-145`;
   the old "15 file suffixes (plus `.cc` …)" wording is gone. The figures still
@@ -485,35 +554,31 @@ bridge judged sound), and `lang-batch-triage.md` (CODE 7, TEST 1, BOTH 1).
   needed because the README and the code now agree.
 - **Commit subjects are minimal.** `git log --oneline` shows only `feat:` /
   `docs:` / `refactor:`; the descriptive subjects live in the ledger.
-- **No commit for the docs batch yet** at the time of writing: the ten modified
-  files listed above plus this new file are uncommitted.
-- **Gate results were not re-run for this file**; they are quoted from the
-  recorded evidence files with their paths and lines.
-- **Post-iteration-14 browser evidence is thin.** The empty-`trace` UX
-  observation predates the deterministic-trace merge, and no later captured
-  response body in the repo proves the merged trace contents.
+- **No pending commit.** The 2026-11-26 docs batch was committed; the workspace
+  wave is committed through `cefc072`, plus this status refresh; the tree is clean.
+- **Gate results on this HEAD were re-run**, not only quoted: 270 workspace
+  tests, `ALL_TESTS_OK`, `UI_CHECK_OK`, `WORKSPACE_SIM_OK` and `CULTURE_OK`.
+  Older rows in the table above remain quoted base evidence.
+- **Browser evidence is current for the workspace UI.** The trace field is
+  covered by the 2026-11-27 audit (simulate run with a real trace and duration);
+  the older empty-`trace` observation remains historical.
 
 ## What remains / next steps
 
-1. Commit this document together with the pending docs batch, using explicit
-   paths (`git add <specific paths>`), only after the human go
-   (`AGENTS.md:29-44`). No code change is needed to unblock a commit: the last
-   recorded gate was green.
-2. Run a final cleanup audit — no fnscope processes, no listeners on ports
-   4310–4314, no scratch directories, no CR bytes — as done at iteration 14
-   (`.reports/goal-build-fnscope.md:164`).
-3. No README count fix remains: `README.md:5` and `:18` now state 16 suffixes,
-   matching `scan.rs:29-46` and `adapter.rs:128-145`, so no `docs/drift.md`
-   entry was needed.
-4. Any further commits or tags require the human go. Agents do not commit or
-   merge (`AGENTS.md:35-37`).
-5. Optional capability work: add another adapter (for example Scala or Dart)
-   by implementing `LanguageAdapter` in a new module, registering it and adding
-   fixtures/tests. Per `docs/concepts/language-adapter.md:75-89` and
-   `docs/contract/adapter-api.md:102-127`, this needs zero changes to
-   `fnscope-core`'s graph builder, `fnscope-model`, `fnscope-enrich` or `ui/`.
-   Run `cargo test --workspace` afterwards and confirm every existing gate is
-   unchanged.
+1. **Human PR/merge gate.** Everything is committed on `feature/workspace-ui`
+   at `cefc072` plus this status refresh; `main` is untouched and nothing was pushed. The PR body can
+   cite `docs/features/workspace-ui/VERIFY-workspace-ui.md` and
+   `.reports/ui-workspace-audit.md`.
+2. Optional polish: bundle IBM Plex (OFL) as local WOFF2 assets and record the
+   built-size/offline check; add a simulate/live two-scope fixture pair.
+3. Optional Scenario 13: hash deep links (`#/scope/<id>/fn/<fnId>/<view>`) with
+   browser Back, only if the core stays green.
+4. Optional capability work: add another adapter by implementing
+   `LanguageAdapter`, registering it and adding fixtures/tests; no core/UI
+   changes (`docs/concepts/language-adapter.md`,
+   `docs/contract/adapter-api.md`).
+5. No further commits or tags without the human go; agents do not merge or push
+   (`AGENTS.md`).
 
 ## How to run it yourself
 
@@ -525,11 +590,14 @@ cargo build --release -p fnscope
 ./target/release/fnscope scan ./tests/fixtures/sample_app/src
 ./target/release/fnscope ./tests/fixtures/sample_app/src
 ./target/release/fnscope ./tests/fixtures/rust_app/src
+./target/release/fnscope open --workspace tests/fixtures/workspace/fnscope.workspace.json
 ```
 
 Then open <http://localhost:4310> and press Ctrl-C to stop the server. The
 second and third commands are the bare-target form of `open`: scan once, serve
-the UI and watch for changes (`README.md:7-18`).
+the UI and watch for changes. The fourth serves the two-scope Alpha/Beta
+fixture so the scope switcher and the scoped invoke routes are visible
+(`README.md`).
 
 From PowerShell, the same steps are (`cargo` is not on the Windows PATH here):
 
@@ -544,10 +612,10 @@ wsl.exe -d Debian --exec bash -lc 'cargo build --release -p fnscope'
 
 For real TS/JS invocation rather than the simulated trace, set `FNSCOPE_NODE`
 to a Node 24 executable and serve with `--invoke node`
-(`README.md:115-117`; `docs/drift.md:29-31`).
+(`README.md:143-150`; `docs/drift.md:29-31`).
 
 Verification harnesses, run in WSL and not while agents are writing crate
-files (`README.md:119-124`):
+files (`README.md:151-158`):
 
 ```bash
 bash scripts/test-all.sh
