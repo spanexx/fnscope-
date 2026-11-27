@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ui:
+    name: Build embedded UI
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install UI dependencies
+        run: npm ci --prefix ui
+
+      - name: Rebuild the embedded UI
+        run: bash ui/build.sh
+
+      - name: Verify the committed UI artifacts
+        run: git diff --exit-code -- ui/dist
+
+      - name: UI checks
+        run: |
+          node ui/scripts/check-ui.mjs
+          npm --prefix ui test
+
+      - name: Check the tag against Cargo.toml
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cargo_version="$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)"
+          if [ "$version" != "$cargo_version" ]; then
+            echo "tag v$version does not match the workspace version $cargo_version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist
+          if-no-files-found: error
+
+  build:
+    name: Package ${{ matrix.target }}
+    needs: ui
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+          - os: macos-15
+            target: aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build the release binary
+        run: cargo build --release -p fnscope --target ${{ matrix.target }}
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "${{ needs.ui.outputs.version }}"
+          $target = "${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path staging | Out-Null
+          Copy-Item "target/$target/release/fnscope.exe" "staging/fnscope.exe"
+          Copy-Item README.md staging/
+          Copy-Item LICENSE staging/
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "staging/*" -DestinationPath "dist/fnscope-$version-$target.zip" -Force
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          version="${{ needs.ui.outputs.version }}"
+          target="${{ matrix.target }}"
+          mkdir -p staging dist
+          cp "target/$target/release/fnscope" staging/fnscope
+          cp README.md LICENSE staging/
+          tar -czf "dist/fnscope-$version-$target.tar.gz" -C staging fnscope README.md LICENSE
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fnscope-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [ ui, build ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Write checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

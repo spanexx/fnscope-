@@ -28,6 +28,28 @@ wsl.exe -d Debian --exec bash -lc 'cargo build --release -p fnscope'
 
 `cargo` is not on the Windows PATH in this environment, so build through WSL. Running the already-built binary from PowerShell is fine.
 
+## Install a release
+
+Published builds are one archive per platform, with the UI already embedded:
+
+- **Windows x64** — `fnscope-<version>-x86_64-pc-windows-msvc.zip`
+- **macOS Apple Silicon** — `fnscope-<version>-aarch64-apple-darwin.tar.gz`
+- **macOS Intel** — `fnscope-<version>-x86_64-apple-darwin.tar.gz`
+- **Linux x64** — `fnscope-<version>-x86_64-unknown-linux-gnu.tar.gz`
+
+Download the latest release from
+<https://github.com/spanexx/fnscope-/releases/latest>, verify it against
+`SHA256SUMS`, extract it, and run:
+
+```bash
+./fnscope --version
+```
+
+The 0.1.0 builds are unsigned. Windows SmartScreen may warn, and macOS may
+quarantine the download; `xattr -d com.apple.quarantine fnscope` clears the
+latter. See `docs/RELEASING.md` for checksums, packaging and the release
+process.
+
 ## Commands and flags
 
 Exact flags from `--help`.
