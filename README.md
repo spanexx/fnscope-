@@ -1,8 +1,36 @@
 # fnscope
 
+A local-first function inspector for 13 languages. Point it at a repository and read a function's callers, execution steps, source, returns and declared errors in one place. One Rust binary, no account, no cloud service, no telemetry.
+
+![fnscope workspace: sidebar explorer, Story canvas and invoke sandbox](docs/assets/ui/hero.png)
+
 ## What it does
 
 fnscope reads 13 named languages — TypeScript, TSX, JavaScript, JSX, Rust, Python, Go, Java, C, C++, C#, Kotlin, Ruby, PHP and Swift — across 16 file suffixes, and builds a deterministic function graph: signatures, ordered execution steps, upstream callers and downstream calls. It then serves a local web explorer with four views (Story, 1-Hop, Split and Raw), isolated project scopes and a sandbox invoke panel. An optional, hash-cached LLM pass can fill in plain-English descriptions and sample arguments. There is no account, no cloud service and no telemetry: it is a single local binary. The binary is built in Rust and the React UI is bundled into it, so there is no separate frontend to install or run.
+
+## A quick look
+
+![UI tour: Story, 1-Hop, Split, Raw, the scope switcher and the invoke sandbox](docs/assets/ui/tour.gif)
+
+One function, four ways to read it:
+
+| Story | 1-Hop |
+| --- | --- |
+| [![Story view: header, callers, inputs and execution steps](docs/assets/ui/story.png)](docs/assets/ui/story.png) | [![1-Hop view: callers, current function and callees](docs/assets/ui/one-hop.png)](docs/assets/ui/one-hop.png) |
+| **Split** | **Raw** |
+| [![Split view: real source beside the story](docs/assets/ui/split.png)](docs/assets/ui/split.png) | [![Raw view: the complete FnRecord JSON](docs/assets/ui/raw.png)](docs/assets/ui/raw.png) |
+
+**Scopes keep projects isolated.** Each scanned project owns its manifest, call edges and invoke mode. Switching swaps the explorer, breadcrumb and canvas without mixing two repositories.
+
+[![Scope switcher with four scanned projects](docs/assets/ui/scopes.png)](docs/assets/ui/scopes.png)
+
+**Invoke from the record.** The sandbox follows the selected function, shows its real arguments, posts to that scope's route and labels simulated versus live execution honestly.
+
+[![Invoke sandbox with a simulated trace](docs/assets/ui/invoke.png)](docs/assets/ui/invoke.png)
+
+**Paper and Graphite.** Both palettes are bundled; the choice persists across reloads.
+
+[![Graphite palette](docs/assets/ui/theme-graphite.png)](docs/assets/ui/theme-graphite.png)
 
 ## Quick start
 
