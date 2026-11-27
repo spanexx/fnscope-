@@ -2,7 +2,7 @@
 
 ## What it does
 
-fnscope reads 13 named languages — TypeScript, TSX, JavaScript, JSX, Rust, Python, Go, Java, C, C++, C#, Kotlin, Ruby, PHP and Swift — across 16 file suffixes, and builds a deterministic function graph: signatures, ordered execution steps, upstream callers and downstream calls. It then serves a local web explorer with four views (Raw, Split, Preview and 1-Hop Map) plus a sandbox invoke panel. An optional, hash-cached LLM pass can fill in plain-English descriptions and sample arguments. There is no account, no cloud service and no telemetry: it is a single local binary. The binary is built in Rust and the React UI is bundled into it, so there is no separate frontend to install or run.
+fnscope reads 13 named languages — TypeScript, TSX, JavaScript, JSX, Rust, Python, Go, Java, C, C++, C#, Kotlin, Ruby, PHP and Swift — across 16 file suffixes, and builds a deterministic function graph: signatures, ordered execution steps, upstream callers and downstream calls. It then serves a local web explorer with four views (Story, 1-Hop, Split and Raw), isolated project scopes and a sandbox invoke panel. An optional, hash-cached LLM pass can fill in plain-English descriptions and sample arguments. There is no account, no cloud service and no telemetry: it is a single local binary. The binary is built in Rust and the React UI is bundled into it, so there is no separate frontend to install or run.
 
 ## Quick start
 
@@ -60,10 +60,41 @@ fnscope open [OPTIONS] [TARGET_DIR]
 | `--host <HOST>` | Host address to bind (default `127.0.0.1`) |
 | `--no-watch` | Disable the live file watcher |
 | `--invoke <INVOKE>` | How `/api/invoke` executes functions: `simulate` or `node` (default `simulate`) |
+| `--workspace <FILE>` | Serve the scopes listed in a `fnscope.workspace.json` |
+| `--scope <ID=PATH>` | Add or override one scope; repeatable |
+| `--default-scope <ID>` | Pick the scope used by the compatibility routes |
 | `--enrich` | Enrich the graph using an LLM plus the local cache |
 | `--model <MODEL>` | Model name for enrichment |
 
 `fnscope <TARGET>` is shorthand for `fnscope open <TARGET>`, and the `open` flags also work at the top level, so `fnscope ./src --port 4311` and `fnscope open ./src --port 4311` are the same.
+
+### Workspace scopes
+
+One server can serve several independent project graphs without mixing their call edges or invoke
+results:
+
+```bash
+./target/release/fnscope open --workspace tests/fixtures/workspace/fnscope.workspace.json
+```
+
+The config is explicit and relative to its own directory:
+
+```json
+{
+  "version": 1,
+  "defaultScope": "alpha",
+  "scopes": [
+    { "id": "alpha", "label": "Alpha", "path": "alpha", "include": ["**/*.ts"], "invoke": "simulate" },
+    { "id": "beta", "label": "Beta", "path": "beta", "include": ["**/*.ts"], "invoke": "simulate" }
+  ]
+}
+```
+
+Absolute paths and `..` traversal are rejected. With no workspace config, `open` keeps the original
+single-scope behaviour and serves the implicit default scope on the compatibility routes. The
+workspace routes are additive: `GET /api/scopes`, `GET /api/scopes/<id>/fn-graph.json` and
+`POST /api/scopes/<id>/invoke`; `/api/fn-graph.json` and `/api/invoke` keep serving the default
+scope. See the additive section in `docs/contract/rust-api.md`.
 
 ## Languages
 
@@ -92,6 +123,7 @@ Kotlin is parsed with `tree-sitter-kotlin-ng`; the older `tree-sitter-kotlin` pi
 Everything fnscope writes lands in `.fnscope/` (default; change with `--out`). You can gitignore it or commit it for teammates.
 
 - `fn-graph.json` — the full function graph: functions, parameters, steps, return shapes, errors, call edges and source code. This is what the UI reads.
+- `scopes/<id>/fn-graph.json` — one manifest per configured workspace scope, written only in workspace mode.
 - `enrich-cache.json` — the LLM enrichment cache, keyed by each function's `astHash`.
 
 `astHash` is a SHA-256 of the function after comments and all whitespace outside string or template literals have been stripped (`sha256:<64 hex>`). It represents the code's shape, not its formatting. Adding blank lines or spaces inside a function leaves the hash unchanged, so the next `--enrich` run is a cache hit and makes zero new API calls. Changing a string literal or the code's meaning changes the hash and triggers a new call.
@@ -122,6 +154,7 @@ Run these in WSL. Neither script should be run while agents are still writing cr
 
 - `bash scripts/test-all.sh` — the single gate. It checks formatting, runs the workspace tests, builds the release binary, scans the sample fixture and smoke-tests the HTTP server as separate steps. Prints `ALL_TESTS_OK` only when all five stages pass.
 - `bash scripts/enrich-e2e.sh` — exercises the real CLI, a local mock LLM and the on-disk cache together. It proves that the first scan is all cache misses with one API call per function, an unchanged second scan is all cache hits with zero API calls, a formatting-only edit makes no new call, and a semantic edit does. Prints `ENRICH_E2E_OK` on success.
+- `bash docs/features/workspace-ui/simulate.sh` — starts the real two-scope fixture, asserts scope isolation, call edges, the compatibility routes and scoped invoke, then runs the served-manifest contract check. Prints `WORKSPACE_SIM_OK`.
 
 ## Architecture map
 
@@ -129,9 +162,9 @@ Run these in WSL. Neither script should be run while agents are still writing cr
 - `fnscope-parser` — tree-sitter adapters for all 13 languages, each owning its grammar and the extraction of functions, steps, errors, types and purity behind `LanguageAdapter`.
 - `fnscope-core` — the scanner: globs files, looks up one adapter per suffix, builds the graph, computes `astHash`, writes and reads the manifest.
 - `fnscope-enrich` — hash-cached LLM enrichment, cache read/write and the no-op offline fallback.
-- `fnscope-server` — the axum HTTP routes, embedded UI assets and `/api/invoke` in simulate or node mode.
-- `fnscope-cli` — the `fnscope` binary: clap parsing and the `scan` / `open` commands.
-- `ui/` — the React explorer (Raw, Split, Preview and 1-Hop Map views); built into `ui/dist` and embedded into the binary at compile time.
+- `fnscope-server` — the axum HTTP routes, the workspace scope registry, embedded UI assets and `/api/invoke` in simulate or node mode.
+- `fnscope-cli` — the `fnscope` binary: clap parsing, the `scan` / `open` commands and workspace configuration.
+- `ui/` — the React workspace UI (Story, 1-Hop, Split and Raw views, scope switcher, explorer and invoke drawer); built into `ui/dist` and embedded into the binary at compile time.
 
 ## Limits
 

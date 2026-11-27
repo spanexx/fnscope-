@@ -164,3 +164,39 @@ Verdict: fail/retry (routing corrected)
 Failure class: Hy4 greenfield implementation capacity
 Pivot: paid model for large greenfield UI; Hy4 limited to read-only review/scout and small edits
 Next: review each completed paid job, integrate one at a time, rebuild and run the full gate.
+
+### 10 — 2026-11-27T01:05
+
+Action: resolved the J4 stash/reset conflict by restoring the server files to the corrected base,
+re-ran the CLI tests, and committed `feat(cli): add workspace scope configuration` (`f6dcb08`).
+Cherry-picked the reviewed UI jobs: J5 `a893f92`, J6 `8cdff1c` + fix `f2c0bb0`, J7 `c4f97f4`.
+Wired `Explorer`, `CanvasViews` and `InvokeDrawer` into `App.tsx` with a keyed default selection,
+call-path trail, scope-switch reset and an honest drawer empty state (`47f22ca`); removed the
+placeholder file. Added the 26-test CLI call-edge proof and waived two test-only absolute paths
+caught by the culture gate (`7f8e057`, `8c4f1d4`).
+Verification: `bash scripts/test-all.sh` -> `ALL_TESTS_OK` (workspace 26 CLI tests, 26 server tests,
+`MANIFEST_OK: 9 functions, 8 call edges`, `SERVER_SMOKE_OK`); `CULTURE_OK`; `UI_CHECK_OK`;
+`npm --prefix ui test` -> 5 pass; `bash docs/features/workspace-ui/simulate.sh` ->
+`WORKSPACE_SIM_OK` + `UI_CONTRACT_OK (2 functions)`.
+Verdict: pass
+Failure class: none
+Pivot: none
+Next: recorded browser audit, drift closure (D-7, D-9..D-12), VERIFY and the human PR gate.
+
+### 11 — 2026-11-27T01:12
+
+Action: audited the real two-scope product in the in-app browser and headless Chrome 158 over CDP
+(375/768/1440), then fixed what the audit found: the CSP-blocked inline theme script is now a
+served `/theme.js`; literal `\u00b7` text nodes were corrected; the fixture's `return shared(x)`
+never produced a call edge, so both fixtures now use a call statement and a new test proves the
+edge stays inside its scope; a compact mobile view menu makes all four views reachable at 375px;
+the 1px mobile header overflow was removed. The drawer can now be run from the shell's
+Ctrl/Cmd+Enter while focus is outside it. Deleted the unreferenced legacy `FunctionExplorer.tsx`.
+Verification: `.reports/ui-workspace-audit.md` records 12 scenarios PASS/PARTIAL with screenshots;
+`cargo fmt --all -- --check`; `cargo test --workspace`; `bash scripts/test-all.sh` ->
+`ALL_TESTS_OK`; `CULTURE_OK`; `WORKSPACE_SIM_OK`; browser console clean after the CSP fix; error
+state + Retry recovered after the server restart.
+Verdict: pass
+Failure class: none
+Pivot: none
+Next: docs commit, then stop at the human PR/merge gate. Do not merge or push.

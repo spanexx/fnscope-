@@ -1,4 +1,16 @@
-# fnscope — Current state (2026-11-26)
+# fnscope — Current state (updated 2026-11-27)
+
+> **Workspace UI update (2026-11-27).** The explorer described in the 2026-11-26 baseline below
+> has been replaced by the validated workspace UI: isolated project scopes, an entry-point/module
+> explorer, Story / 1-Hop / Split / Raw views, a call-path breadcrumb and a real invoke drawer.
+> Evidence: `docs/features/workspace-ui/` (GRILL, PRD-TRD, IMPL, `simulate.sh`),
+> `.reports/ui-workspace-audit.md` and `.reports/ui-workspace-audit/` screenshots.
+> `bash scripts/test-all.sh` prints `ALL_TESTS_OK`, `bash docs/features/workspace-ui/simulate.sh`
+> prints `WORKSPACE_SIM_OK`, and `bash scripts/check-culture.sh` prints `CULTURE_OK`.
+> Workspace routes are additive: `GET /api/scopes`, `GET /api/scopes/<id>/fn-graph.json`,
+> `POST /api/scopes/<id>/invoke`; the legacy routes keep serving the default scope.
+> Live Node invoke remains opt-in per scope and is not exercised by the simulate-only fixture;
+> deep links (Scenario 13) remain deferred.
 
 This file is the single entry point for a human who wants to know where the build
 actually is. Every number and marker below is quoted from a file in this repo,
@@ -67,8 +79,9 @@ purity and permissions, throws, and a content hash per function
 (`README.md:3-5`; `docs/features/fnscope-base/PRD-TRD.md:40-47`). Structural
 truth comes from tree-sitter AST parsing; an LLM is only an optional,
 hash-cached enrichment pass (`PRD-TRD.md:11-19`). The graph is served through a
-local web explorer with four views — Raw, Split, Preview and 1-Hop Map — plus a
-sandbox invoke panel (`README.md:5`, `PRD-TRD.md:110-126`).
+local web explorer with isolated project scopes and four views — Story, 1-Hop,
+Split and Raw — plus a sandbox invoke drawer (`README.md:5`,
+`docs/features/workspace-ui/PRD-TRD-workspace-ui.md:21-124`).
 
 Two commands cover the product surface:
 
@@ -275,25 +288,32 @@ a promise that Node can run that language (`README.md:140`).
 
 ## Local server and UI
 
-The server exposes six routes (`docs/contract/rust-api.md:192-198`;
-`PRD-TRD.md:128-138`):
+The server exposes the compatibility routes plus the additive workspace routes
+(`docs/contract/rust-api.md`):
 
 | Route | Result |
 | --- | --- |
 | `GET /` | `INDEX_HTML` as `text/html` |
+| `GET /theme.js` | `THEME_JS` as `text/javascript` |
 | `GET /app.js` | `APP_JS` as `text/javascript` |
 | `GET /app.css` | `APP_CSS` as `text/css` |
-| `GET /api/fn-graph.json` | manifest JSON, `404` if missing, never panic |
-| `POST /api/invoke` | `InvokeRequest` -> `InvokeResponse` |
+| `GET /api/scopes` | scope descriptors and `defaultScope` |
+| `GET /api/scopes/<id>/fn-graph.json` | that scope's validated manifest |
+| `POST /api/scopes/<id>/invoke` | scoped `InvokeRequest` -> `InvokeResponse` |
+| `GET /api/fn-graph.json` | default-scope manifest, `404` if missing, never panic |
+| `POST /api/invoke` | default-scope invoke |
 | `GET /api/health` | `{"ok":true,"tool":"fnscope"}` |
 
-`router(config)` is testable without binding; `serve(config)` binds and runs
-(`PRD-TRD.md:137-138`). The three UI assets are embedded with `include_str!`
-(`docs/contract/rust-api.md:187-189`). The explorer has Raw, Split, Preview
-and 1-Hop Map views; Preview shows metadata, `calledBy`, parameters, ordered
-execution steps with call/transform/branch/return badges, `returns`, `throws`
-and `invokeSandbox`, with call-path breadcrumbs and back navigation
-(`PRD-TRD.md:110-126`).
+`router(config)` is testable without binding; `serve(config)` binds and runs.
+The four UI assets are embedded with `include_str!`. The workspace explorer has
+Story, 1-Hop, Split and Raw views, an entry-point/module explorer with search,
+a call-path breadcrumb and an invoke drawer that labels the server's mode
+honestly (`docs/features/workspace-ui/PRD-TRD-workspace-ui.md:21-124`).
+
+Historical browser evidence below (`.reports/ui-browser.md`) describes the
+retired single-scope explorer; the workspace UI evidence is
+`.reports/ui-workspace-audit.md` and the screenshots under
+`.reports/ui-workspace-audit/`.
 
 Browser evidence (`.reports/ui-browser.md`) used the release binary against the
 real served manifest, not the built-in demo data:

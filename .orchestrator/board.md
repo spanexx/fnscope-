@@ -81,3 +81,21 @@ lane. Keep paid concurrency limited and integrate one reviewed commit at a time.
 - Every worker report is graded in `docs/workflows/model-scorecard.md`.
 - Every code diff gets `review`; high-risk/contract changes also get `critic`.
 - No model inheritance; every child has an explicit model.
+
+## Wave 3 — integrated and audited (2026-11-27)
+
+| Job | Commit / state | Review | Notes |
+|---|---|---|---|
+| J4 CLI workspace config | `f6dcb08` | PASS | 26 CLI tests; workspace scan/watch; call-edge proof `8c4f1d4` |
+| J5 Explorer | `a893f92` | PASS | entry points, module tree, search, trail helpers |
+| J6 Views | `8cdff1c` + `f2c0bb0` | PASS | fixed duplicate callee parentheses |
+| J7 Invoke drawer | `c4f97f4` | PASS | real trace, token/abort guard, honest mode labels |
+| Integration | `47f22ca` | orchestrator | shell wired to Explorer/CanvasViews/InvokeDrawer; placeholders removed |
+| Guardrails | `19a089c`, `7f8e057`, `8c4f1d4` | culture gate | scope-route smoke, test-only path waivers, call-edge test |
+| CSP + mobile polish | `d3cf48a` | audit | served `/theme.js`, mobile view menu, separator fixes |
+| Browser audit | `.reports/ui-workspace-audit.md` | orchestrator | 375/768/1440 measurements + screenshots |
+
+Gate on the integrated tree: `ALL_TESTS_OK`, `CULTURE_OK`, `UI_CHECK_OK`, `UI_TEST_OK` (5),
+`WORKSPACE_SIM_OK`, `UI_CONTRACT_OK`. D-7 and D-9…D-12 resolved.
+
+Next: docs commit, then the human PR/merge gate. `main` untouched; no push.

@@ -60,15 +60,41 @@ D-6 closure requires replacing the dependency with `tree-sitter-kotlin-ng 1.1` (
 
 **D-6 -> Resolved 2026-11-26.** Verified by: workspace and parser manifests now declare `tree-sitter-kotlin-ng = "1.1"`; `src/kotlin/` contains no `unsafe`/`transmute` and uses `tree_sitter_kotlin_ng::LANGUAGE.into()`; grammar node kinds were remapped for the -ng grammar with all 14 Kotlin tests preserved. `cargo test --workspace` -> `ADAPTER_GATE_STATUS=0` with 233 tests passing, and the 13-language polyglot scan reports 78 functions across 13 extensions with 0 dangling edges.
 
-    D-7 | 2026-11-26 | docs/features/fnscope-base/PRD-TRD.md:110-126 and README.md:5 promise Raw, Split, Preview and 1-Hop Map | ui/src/FunctionExplorer.tsx:830 uses the internal `preview` view; the validated workspace design calls the primary view Story | Open | workspace-ui orchestrator
+    D-7 | 2026-11-26 | docs/features/fnscope-base/PRD-TRD.md:110-126 and README.md:5 promise Raw, Split, Preview and 1-Hop Map | ui/src/FunctionExplorer.tsx:830 used the internal `preview` view; the validated workspace design calls the primary view Story | Resolved | workspace-ui orchestrator
 
 D-7 closure requires the workspace-ui pack to rename or relabel the primary view and update the base PRD/README references, with a `Verified by:` note naming the rendered browser check.
+
+**D-7 -> Resolved 2026-11-27.** Verified by: `README.md:5`, `docs/features/fnscope-base/PRD-TRD.md:14,116-117,215,307` and `docs/features/fnscope-rust-backend/PRD-TRD-fnscope-rust-backend.md:41` now name Story, 1-Hop, Split and Raw; the shell renders `ui/src/views/StoryView.tsx` and the recorded browser audit shows `Story view` active with the real story sections. The superseded `ui/src/FunctionExplorer.tsx` (no imports) was deleted instead of leaving a second primary view in the tree.
 
     D-8 | 2026-11-26 | crates/fnscope-server/src/lib.rs:117-118 comment says the loaded graph is validated before serving | fn_graph deserializes `FnGraph` but never calls `FnGraph::validate` | Resolved | workspace-ui server job
 
 D-8 closure requires the server scope work to validate the graph before serving, add a corrupt-manifest test, and record the real gate output in a `Verified by:` note.
 
 **D-8 -> Resolved 2026-11-27.** Verified by: `cargo test -p fnscope-server` -> 26 passed, including `d8_validation_rejects_a_semantically_invalid_manifest`; `bash scripts/test-all.sh` -> `ALL_TESTS_OK`. `parse_and_validate` calls `FnGraph::validate()` before serving; the corrupt-manifest test proves the default and scoped graph routes return 500 and the scope list reports `available:false`.
+
+    D-9 | 2026-11-27 | docs/features/workspace-ui/PRD-TRD-workspace-ui.md:97-102 says the view switcher "remains reachable" when the window narrows | ui/src/components/ViewSwitcher.tsx:24 hid the whole switcher below 640px; at 375px the only view control was a keyboard digit | Resolved | workspace-ui orchestrator
+
+D-9 closure requires a touch-reachable view control at 375px and a re-measure that all header controls sit inside the viewport.
+
+**D-9 -> Resolved 2026-11-27.** Verified by: `ViewSwitcher` now renders a compact icon menu below `sm` with four `menuitemradio` entries and the active view in its label; CDP at 375x667 measured `Canvas view: Story. Switch view` at x 259-291, theme right edge 329, drawer right edge 367, document width 375 and no overflow. The menu opened, listed all four views, selected Split, and closed.
+
+    D-10 | 2026-11-27 | crates/fnscope-server/src/lib.rs:36 sets `script-src 'self'` for the embedded shell | ui/index.html:12 carried an inline palette bootstrap, so the browser refused it and logged a CSP error on every load | Resolved | workspace-ui orchestrator
+
+D-10 closure requires removing the inline script without weakening the policy or causing a theme flash, and recording the console/CSP evidence.
+
+**D-10 -> Resolved 2026-11-27.** Verified by: the bootstrap lives in `ui/src/theme.js`, `ui/build.sh` copies it to `dist/theme.js`, the server serves `/theme.js` from an embedded `THEME_JS`, and `ui/index.html` loads it before the stylesheet. The in-app browser console is empty after reload, the Graphite palette still survives a reload, and the server test `asset_routes_serve_embedded_constants` covers the new route.
+
+    D-11 | 2026-11-27 | The validated design renders the middle dot between footer and scope stats | ui/src/components/ProvenanceStrip.tsx:46 and ui/src/components/ScopeSwitcher.tsx:109 put `\u00b7` in JSX text, which renders the six characters literally | Resolved | workspace-ui orchestrator
+
+D-11 closure requires the character to be an expression in every JSX text node and a browser check of the rendered footer and scope card.
+
+**D-11 -> Resolved 2026-11-27.** Verified by: both nodes now use `{'\u00b7'}`; the in-app browser read `2 fns · 1 files` in the footer, and the scope card note/stats render with real separators. Other `\u` uses are inside JavaScript string literals and were already correct.
+
+    D-12 | 2026-11-27 | tests/fixtures/workspace/alpha/src/main.ts:6-7 and beta/src/main.ts:5-6 say the scanner records a real scope-internal edge | The TypeScript adapter classifies a `return` statement as `StepKind::Return` (crates/fnscope-parser/src/typescript/body.rs:303-315), so `return shared(x)` produced `callsFnId: null`, `shared` appeared as a second entry point and 1-Hop showed "No resolved callees" | Resolved | workspace-ui orchestrator
+
+D-12 closure requires an edge that the parser actually records, a test that the edge resolves inside its own scope, and a re-run of the two-scope simulation.
+
+**D-12 -> Resolved 2026-11-27.** Verified by: both fixtures now call the helper in a declaration (`const doubled = shared(x)`) and return the local value; `shared_call_edge_stays_inside_its_scope` passes with 26 fnscope tests, `docs/features/workspace-ui/simulate.sh` prints `WORKSPACE_SIM_OK`, and the browser 1-Hop view shows the callee with a working Jump. Parser step-kind semantics were not changed.
 
 ## Review rule (non-negotiable)
 

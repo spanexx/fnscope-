@@ -38,7 +38,7 @@ The observable outcome is:
   own source. Recorded: 188 functions / 722 steps / 243 `calledBy` edges /
   243 resolved calls / 0 dangling (iteration 19, ledger line 208), then
   190 / 732 / 245 / 245 / 0 after the quality fix (iteration 20, line 216).
-- The four explorer views (Raw, Split, Preview, 1-Hop Map) need no Rust-specific
+- The four explorer views (Raw, Split, Story, 1-Hop Map) need no Rust-specific
   code; the graph shape is unchanged.
 - Invoking a Rust function returns the deterministic simulated trace. There is
   no Rust executor.

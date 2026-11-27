@@ -11,7 +11,7 @@ Where they disagree, the contract wins and the gap is recorded in
 ## 1. Product goal
 
 fnscope is a local-first developer inspection tool. It pairs raw function
-source with a structured Explorer Preview and a 1-Hop Call Neighborhood Map.
+source with a structured Story view and a 1-Hop Call Neighborhood Map.
 It shows what a function actually does as an ordered pipeline of execution
 steps, links upstream callers and downstream callees, and offers live
 sandbox invocation. It is deterministic first, AI second: structural truth
@@ -113,8 +113,8 @@ Built from the supplied `fnscope_ui.tsx` into static assets embedded in the
 binary. Four view modes:
 
 - `Raw` — `.ts` source or `.json` manifest with one-click Copy.
-- `Split` — raw source left, structured Explorer Preview right.
-- `Preview` — full-width Explorer Preview tree.
+- `Split` — raw source left, structured Story right.
+- `Story` — full-width execution story: trigger, inputs, ordered steps, returns and declared errors.
 - `1-Hop Map` — three columns: Upstream Callers -> Focused Node -> Downstream
   Calls.
 
@@ -212,7 +212,7 @@ J06/J08 fixes. These are recorded results, not agent claims.
   scan, 0 on an unchanged rescan, 0 after a formatting-only change, and a new
   call after a semantic change.
 - Browser audit recorded in `.reports/ui-browser.md`: all four views (`Raw`,
-  `Split`, `Preview`, `1-Hop Map`), breadcrumb navigation, the 1-Hop Map, and
+  `Split`, `Story`, `1-Hop Map`), breadcrumb navigation, the 1-Hop Map, and
   real Node invocation (`clamp -> 10`, no post-Run `simulated: true`) against
   the served manifest rather than the built-in demo data.
 
@@ -304,7 +304,7 @@ Commands run from the repository root in WSL Debian unless a Windows
    lane").
 
 4. View modes, breadcrumb and sandbox. In the browser, switch Raw / Split /
-   Preview / 1-Hop Map, click a caller or callee in the 1-Hop Map, use
+   Story / 1-Hop Map, click a caller or callee in the 1-Hop Map, use
    `Jump ↑` and `Back` on the call-path breadcrumb, and press Run in the
    invoke panel. Observable: graph-level metadata in the `.json` Raw view, a
    three-column 1-Hop Map, a breadcrumb trail that keeps `Back`, and a real
