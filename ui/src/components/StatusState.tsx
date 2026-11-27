@@ -8,8 +8,8 @@ export function LoadingState({ label, detail }: { label: string; detail?: string
   return (
     <div role="status" aria-live="polite" className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center">
       <Loader2 className="h-5 w-5 animate-spin text-accent" aria-hidden="true" />
-      <p className="text-[12px] font-medium text-ink">{label}</p>
-      {detail ? <p className="max-w-[40ch] text-[11px] leading-5 text-muted">{detail}</p> : null}
+      <p className="text-[14px] font-medium text-ink">{label}</p>
+      {detail ? <p className="max-w-[40ch] text-[13px] leading-5 text-muted">{detail}</p> : null}
     </div>
   );
 }
@@ -33,7 +33,7 @@ export function ErrorState({ title, message, detail, onRetry, compact = false }:
       description={
         <>
           {message ? <p>{message}</p> : null}
-          {detail ? <p className="mt-1 break-words font-mono text-[10px] text-faint">{detail}</p> : null}
+          {detail ? <p className="mt-1 break-words font-mono text-[12px] text-faint">{detail}</p> : null}
         </>
       }
       action={

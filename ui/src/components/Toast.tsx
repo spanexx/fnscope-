@@ -72,7 +72,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <Info className="h-3.5 w-3.5 text-muted" />
               )}
             </span>
-            <p className="min-w-0 flex-1 text-[11.5px] leading-5">{toast.message}</p>
+            <p className="min-w-0 flex-1 text-[13.5px] leading-5">{toast.message}</p>
             <button
               type="button"
               onClick={() => dismiss(toast.id)}

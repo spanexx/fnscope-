@@ -30,8 +30,8 @@ export default function Search({ value, onChange, inputRef, disabled = false }: 
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={disabled}
-          placeholder={'Filter functions, modules, IDs\u2026'}
-          className="h-8 w-full rounded-md border border-line bg-panel pl-8 pr-12 text-[11.5px] text-ink placeholder:text-faint focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60 [&::-webkit-search-cancel-button]:appearance-none"
+          placeholder={'Filter functions\u2026'}
+          className="h-8 w-full rounded-md border border-line bg-panel pl-8 pr-12 text-[13.5px] text-ink placeholder:text-faint focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60 [&::-webkit-search-cancel-button]:appearance-none"
         />
         {value ? (
           <button
@@ -43,12 +43,12 @@ export default function Search({ value, onChange, inputRef, disabled = false }: 
             <X className="h-3 w-3" aria-hidden="true" />
           </button>
         ) : (
-          <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-sm border border-line bg-raised px-1 py-0.5 font-mono text-[9px] text-faint">
+          <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-sm border border-line bg-raised px-1 py-0.5 font-mono text-[11px] text-faint">
             {searchShortcutHint()}
           </kbd>
         )}
       </div>
-      <p className="mt-1.5 font-mono text-[9px] text-faint">/ also focuses search</p>
+      <p className="mt-1.5 font-mono text-[11px] text-faint">/ also focuses search</p>
     </>
   );
 }

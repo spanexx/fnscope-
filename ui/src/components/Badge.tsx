@@ -23,7 +23,7 @@ export default function Badge({ tone = 'neutral', children, title, className = '
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] ${TONE_CLASSES[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-[0.08em] ${TONE_CLASSES[tone]} ${className}`}
     >
       {children}
     </span>

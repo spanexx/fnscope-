@@ -97,7 +97,7 @@ export default function InvokeEmpty({
       <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-line px-3">
         <div className="flex min-w-0 items-center gap-2">
           <SquareTerminal className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
-          <span className="truncate text-[12px] font-medium text-ink">Invoke sandbox</span>
+          <span className="truncate text-[14px] font-medium text-ink">Invoke sandbox</span>
           <Badge tone={modeTone}>{modeLabel}</Badge>
         </div>
         <IconButton label="Close invoke sandbox" size="sm" onClick={onClose}>
@@ -109,11 +109,11 @@ export default function InvokeEmpty({
         {empty}
 
         <div className="mt-3 rounded-md border border-line bg-bg p-2.5">
-          <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Route</div>
-          <div className="mt-1 break-all font-mono text-[10px] text-ink">{route}</div>
+          <div className="font-mono text-[11px] uppercase tracking-[0.12em] text-faint">Route</div>
+          <div className="mt-1 break-all font-mono text-[12px] text-ink">{route}</div>
         </div>
 
-        <p className="mt-2 text-[10px] leading-4 text-muted">
+        <p className="mt-2 text-[12px] leading-4 text-muted">
           {scope?.invokeMode === 'node'
             ? 'This scope is configured for live Node execution; a run posts the real request.'
             : scope?.invokeMode === 'simulate'
@@ -129,7 +129,7 @@ export default function InvokeEmpty({
           <Play className="h-3.5 w-3.5" aria-hidden="true" />
           Run function
         </Button>
-        <p className="mt-1.5 text-center font-mono text-[9px] text-faint">
+        <p className="mt-1.5 text-center font-mono text-[11px] text-faint">
           {runShortcutHint()} / select a function first
         </p>
       </div>

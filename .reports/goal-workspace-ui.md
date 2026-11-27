@@ -200,3 +200,19 @@ Verdict: pass
 Failure class: none
 Pivot: none
 Next: docs commit, then stop at the human PR/merge gate. Do not merge or push.
+
+### 12 — 2026-11-27T04:35
+
+Action: the first real coordinator session showed the UI at 100% still required browser zoom.
+Raised the type scale once across the product (8–12px labels to 10–14px, headings to 18–22px;
+173 class replacements in 25 files), then fixed the responsive regressions it exposed: the
+wordmark hides below 480px, the search placeholder is shortened, and long caller names truncate
+instead of overlapping Jump. Recaptured the 375/768/1440 and Graphite screenshots.
+Verification: `node ui/scripts/check-ui.mjs` -> `UI_CHECK_OK (52 source files)`; `npm --prefix
+ui test` -> 5 pass; `cargo test --workspace` -> 270 pass; `bash scripts/test-all.sh` ->
+`ALL_TESTS_OK`; `CULTURE_OK`; CDP at 375/768/1016/1440 -> document width equals viewport, all
+header controls inside, story card inside the canvas.
+Verdict: pass
+Failure class: none (usability feedback)
+Pivot: none
+Next: human PR/merge gate; the 4310 server serves the coordinator with this build.

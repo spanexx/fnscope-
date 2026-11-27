@@ -67,10 +67,10 @@ function TraceRow({
   return (
     <div className="rounded-md border border-line bg-bg px-2.5 py-2">
       <div className="flex items-center gap-1.5">
-        <span className="w-4 shrink-0 text-right font-mono text-[9px] text-faint">{index}</span>
+        <span className="w-4 shrink-0 text-right font-mono text-[11px] text-faint">{index}</span>
         <span
           title={step ? `${step.kind}: ${step.title}` : title}
-          className="min-w-0 flex-1 truncate text-[11px] text-ink"
+          className="min-w-0 flex-1 truncate text-[13px] text-ink"
         >
           {title}
         </span>
@@ -86,16 +86,16 @@ function TraceRow({
           </Badge>
         )}
       </div>
-      <p className="mt-0.5 truncate font-mono text-[9px] text-faint" title={detail}>
+      <p className="mt-0.5 truncate font-mono text-[11px] text-faint" title={detail}>
         {detail}
       </p>
       {entry ? (
         entry.output ? (
-          <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-[10px] leading-4 text-ink">
+          <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-[12px] leading-4 text-ink">
             {entry.output}
           </pre>
         ) : (
-          <p className="mt-1 text-[10px] leading-4 text-faint">No output reported.</p>
+          <p className="mt-1 text-[12px] leading-4 text-faint">No output reported.</p>
         )
       ) : null}
     </div>
@@ -126,11 +126,11 @@ function ResponseView({
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1.5">
         <Badge tone={ok ? 'ok' : 'err'}>{ok ? 'ok' : 'failed'}</Badge>
-        <span className="text-[10px] text-muted">{responseLabel(scope)}</span>
-        <span className="font-mono text-[9px] text-faint">
+        <span className="text-[12px] text-muted">{responseLabel(scope)}</span>
+        <span className="font-mono text-[11px] text-faint">
           {duration ?? 'duration not reported'}
         </span>
-        <span className="font-mono text-[9px] text-faint">
+        <span className="font-mono text-[11px] text-faint">
           {tracedCount} {tracedCount === 1 ? 'traced step' : 'traced steps'}
         </span>
         {outcome.repaired ? (
@@ -145,10 +145,10 @@ function ResponseView({
           role="alert"
           className="rounded-md border border-err/35 bg-err/10 px-2.5 py-2"
         >
-          <p className="text-[10px] font-medium text-err">
+          <p className="text-[12px] font-medium text-err">
             {ok ? 'Server warning' : 'Server error'}
           </p>
-          <p className="mt-0.5 break-words text-[10.5px] leading-4 text-ink">
+          <p className="mt-0.5 break-words text-[12.5px] leading-4 text-ink">
             {response.error || 'The response failed without an error message.'}
           </p>
           <Button variant="secondary" size="sm" className="mt-1.5" onClick={onRetry}>
@@ -159,7 +159,7 @@ function ResponseView({
 
       {response.data !== undefined ? (
         <div>
-          <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.12em] text-faint">
+          <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.12em] text-faint">
             Payload
           </div>
           <div className="max-h-[220px] overflow-auto">
@@ -167,15 +167,15 @@ function ResponseView({
           </div>
         </div>
       ) : (
-        <p className="text-[10px] leading-4 text-faint">The response carried no data payload.</p>
+        <p className="text-[12px] leading-4 text-faint">The response carried no data payload.</p>
       )}
 
       <div>
-        <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.12em] text-faint">
+        <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.12em] text-faint">
           Steps
         </div>
         {manifestSteps.length === 0 && extraIds.length === 0 ? (
-          <p className="text-[10px] leading-4 text-faint">
+          <p className="text-[12px] leading-4 text-faint">
             The server returned an empty trace for this function.
           </p>
         ) : (
@@ -215,10 +215,10 @@ export default function TraceOutput({
     return (
       <div className="rounded-lg border border-dashed border-line-strong px-3 py-6 text-center">
         <Terminal className="mx-auto h-5 w-5 text-faint" aria-hidden="true" />
-        <p className="mt-2 text-[10.5px] text-muted">
+        <p className="mt-2 text-[12.5px] text-muted">
           Run the function to see the server&apos;s real trace.
         </p>
-        <p className="mt-1 break-all font-mono text-[9px] text-faint">{route}</p>
+        <p className="mt-1 break-all font-mono text-[11px] text-faint">{route}</p>
       </div>
     );
   }
@@ -231,9 +231,9 @@ export default function TraceOutput({
         className="flex flex-col items-center gap-2 rounded-lg border border-line bg-bg px-3 py-6 text-center"
       >
         <Loader2 className="h-5 w-5 animate-spin text-accent" aria-hidden="true" />
-        <p className="text-[10.5px] text-ink">Waiting for the server</p>
-        <p className="break-all font-mono text-[9px] text-faint">{route}</p>
-        <p className="text-[9px] text-faint">No duration is shown until the response arrives.</p>
+        <p className="text-[12.5px] text-ink">Waiting for the server</p>
+        <p className="break-all font-mono text-[11px] text-faint">{route}</p>
+        <p className="text-[11px] text-faint">No duration is shown until the response arrives.</p>
       </div>
     );
   }

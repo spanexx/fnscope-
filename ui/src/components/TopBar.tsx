@@ -59,12 +59,12 @@ export default function TopBar({
 
       <div className="flex shrink-0 items-center gap-2 pl-0.5">
         <div className="grid h-7 w-7 place-items-center rounded-sm bg-accent" aria-hidden="true">
-          <span className="-mt-px font-mono text-[10px] font-semibold tracking-tighter text-accent-ink">
+          <span className="-mt-px font-mono text-[12px] font-semibold tracking-tighter text-accent-ink">
             {'{ }'}
           </span>
         </div>
-        <span className="font-serif text-[16px] font-semibold tracking-[-0.01em] text-ink">fnscope</span>
-        <span className="hidden font-mono text-[9px] uppercase tracking-[0.14em] text-faint sm:inline">
+        <span className="ws-brand-text font-serif text-[18px] font-semibold tracking-[-0.01em] text-ink">fnscope</span>
+        <span className="hidden font-mono text-[11px] uppercase tracking-[0.14em] text-faint sm:inline">
           / workspace
         </span>
       </div>

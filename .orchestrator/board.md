@@ -99,3 +99,10 @@ Gate on the integrated tree: `ALL_TESTS_OK`, `CULTURE_OK`, `UI_CHECK_OK`, `UI_TE
 `WORKSPACE_SIM_OK`, `UI_CONTRACT_OK`. D-7 and D-9…D-12 resolved.
 
 Next: docs commit, then the human PR/merge gate. `main` untouched; no push.
+
+## Post-audit type-scale fix (2026-11-27)
+
+The user reported the UI was unreadable at 100% on a real coordinator project. The type scale was
+raised once across all 25 affected UI files, with the 375px wordmark/search/caller-name
+regressions fixed and the audit screenshots recaptured. Gates: `UI_CHECK_OK`, 5 UI tests, 270 Rust
+tests, `ALL_TESTS_OK`, `CULTURE_OK`. This is the last change before the PR gate.

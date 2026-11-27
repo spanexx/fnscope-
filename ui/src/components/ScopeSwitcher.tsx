@@ -54,9 +54,9 @@ export default function ScopeSwitcher({
         className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-left transition-colors hover:border-line-strong hover:bg-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-        <span className="max-w-[120px] truncate text-[12px] font-medium text-ink">{label}</span>
+        <span className="max-w-[120px] truncate text-[14px] font-medium text-ink">{label}</span>
         {stats ? (
-          <span className="hidden font-mono text-[10px] text-faint lg:inline">{stats}</span>
+          <span className="hidden font-mono text-[12px] text-faint lg:inline">{stats}</span>
         ) : null}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-faint" aria-hidden="true" />
       </button>
@@ -69,7 +69,7 @@ export default function ScopeSwitcher({
           className="absolute left-0 top-full z-50 mt-2 w-[390px] max-w-[calc(100vw-24px)] rounded-lg border border-line-strong bg-panel shadow-2xl"
         >
           <div className="p-2">
-            <div className="px-2 pb-2 pt-1 font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-muted">
+            <div className="px-2 pb-2 pt-1 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
               Scanned scopes
             </div>
             {scopes.map((scope) => {
@@ -93,10 +93,10 @@ export default function ScopeSwitcher({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="truncate text-[12px] font-medium text-ink">{scope.label}</span>
+                        <span className="truncate text-[14px] font-medium text-ink">{scope.label}</span>
                         {active ? <Check className="h-3 w-3 shrink-0 text-accent" aria-hidden="true" /> : null}
                       </div>
-                      <div className="mt-0.5 truncate text-[10px] text-muted">
+                      <div className="mt-0.5 truncate text-[12px] text-muted">
                         {scope.note || scope.rootDir || 'No note'}
                       </div>
                     </div>
@@ -105,25 +105,25 @@ export default function ScopeSwitcher({
                     </Badge>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-1">
-                    <span className="font-mono text-[9px] text-faint">
+                    <span className="font-mono text-[11px] text-faint">
                       {formatCount(scope.functionCount)} fns {'\u00b7'} {formatCount(scope.fileCount)} files
                     </span>
                     {scope.languages.slice(0, 4).map((language) => (
                       <span
                         key={language.name}
-                        className="rounded border border-line-strong bg-bg px-1 py-0.5 text-[9px] text-muted"
+                        className="rounded border border-line-strong bg-bg px-1 py-0.5 text-[11px] text-muted"
                       >
                         {language.name}{' '}
                         <span className="text-faint">{formatCount(language.count)}</span>
                       </span>
                     ))}
                     {scope.languages.length > 4 ? (
-                      <span className="rounded border border-line-strong px-1 py-0.5 text-[9px] text-faint">
+                      <span className="rounded border border-line-strong px-1 py-0.5 text-[11px] text-faint">
                         +{scope.languages.length - 4}
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-2 flex items-center gap-1 text-[9.5px] text-faint">
+                  <div className="mt-2 flex items-center gap-1 text-[11.5px] text-faint">
                     <Clock className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
                     <span className="truncate" title={scope.generatedAt || 'generatedAt unknown'}>
                       scanned {scope.generatedAt ? formatGeneratedAt(scope.generatedAt) : 'unknown'}
@@ -131,12 +131,12 @@ export default function ScopeSwitcher({
                     </span>
                   </div>
                   {scope.error ? (
-                    <p className="mt-1 break-words font-mono text-[9.5px] text-err">{scope.error}</p>
+                    <p className="mt-1 break-words font-mono text-[11.5px] text-err">{scope.error}</p>
                   ) : null}
                 </button>
               );
             })}
-            <div className="mt-2 flex items-start gap-2 rounded-md border border-line bg-bg px-2.5 py-2 text-[10px] leading-4 text-muted">
+            <div className="mt-2 flex items-start gap-2 rounded-md border border-line bg-bg px-2.5 py-2 text-[12px] leading-4 text-muted">
               <Shield className="mt-0.5 h-3 w-3 shrink-0 text-ok" aria-hidden="true" />
               <span>
                 Each scope owns its graph. Switching swaps the sidebar, breadcrumb, canvas and

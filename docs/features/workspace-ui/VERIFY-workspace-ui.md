@@ -29,6 +29,12 @@ Scenarios 1–12 PASS or PASS with a recorded server-level check; Scenario 13
 delay, random duration or sample data is used: the invoke evidence includes a
 real server duration and a `simulated: true` payload from the simulate scope.
 
+**Post-audit typography polish (2026-11-27).** The type scale was raised once
+(8–12 px labels to 10–14 px; headings to 18–22 px) after real-product feedback
+that the UI required browser zoom at 100%. The 375 px header hides the wordmark,
+the search placeholder is shortened, and long caller names truncate. Re-measured
+at 375/768/1016/1440 with no horizontal overflow; screenshots were recaptured.
+
 ## Review and drift
 
 - Independent reviews: J4 CLI PASS; J5 explorer PASS; J6 views PASS after one

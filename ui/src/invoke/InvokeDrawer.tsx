@@ -163,7 +163,7 @@ export default function InvokeDrawer({
         <div className="flex h-11 items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <SquareTerminal className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
-            <span className="truncate text-[12px] font-medium text-ink">Invoke sandbox</span>
+            <span className="truncate text-[14px] font-medium text-ink">Invoke sandbox</span>
             <Badge tone={mode.tone}>{mode.label}</Badge>
           </div>
           <IconButton label="Close invoke sandbox" size="sm" onClick={onClose}>
@@ -172,20 +172,20 @@ export default function InvokeDrawer({
         </div>
 
         <div className="flex min-w-0 items-baseline gap-1.5">
-          <span className="truncate font-mono text-[11.5px] text-ink" title={signature}>
+          <span className="truncate font-mono text-[13.5px] text-ink" title={signature}>
             {fn.name}()
           </span>
-          <span className="shrink-0 font-mono text-[9px] text-faint">
+          <span className="shrink-0 font-mono text-[11px] text-faint">
             {fn.runtime || 'runtime unknown'}
           </span>
         </div>
         <p
-          className="truncate font-mono text-[9.5px] text-muted"
+          className="truncate font-mono text-[11.5px] text-muted"
           title={`${scope.label} \u00b7 ${fn.module}`}
         >
           {scope.label} {'\u00b7'} {fn.module}
         </p>
-        <p className="mt-0.5 truncate font-mono text-[9px] text-faint" title={signature}>
+        <p className="mt-0.5 truncate font-mono text-[11px] text-faint" title={signature}>
           {signature}
         </p>
       </div>
@@ -202,7 +202,7 @@ export default function InvokeDrawer({
               disabled={scope.invokeMode !== 'simulate'}
               aria-pressed={scope.invokeMode === 'simulate'}
               title={simulateTitle}
-              className={`flex w-full items-center justify-center gap-1 rounded px-2 py-1 text-[10px] transition-colors ${
+              className={`flex w-full items-center justify-center gap-1 rounded px-2 py-1 text-[12px] transition-colors ${
                 scope.invokeMode === 'simulate'
                   ? 'bg-active text-ink shadow-sm'
                   : 'cursor-not-allowed text-faint'
@@ -218,7 +218,7 @@ export default function InvokeDrawer({
               disabled={scope.invokeMode !== 'node'}
               aria-pressed={scope.invokeMode === 'node'}
               title={liveTitle}
-              className={`flex w-full items-center justify-center gap-1 rounded px-2 py-1 text-[10px] transition-colors ${
+              className={`flex w-full items-center justify-center gap-1 rounded px-2 py-1 text-[12px] transition-colors ${
                 scope.invokeMode === 'node'
                   ? 'bg-active text-ink shadow-sm'
                   : 'cursor-not-allowed text-faint'
@@ -230,7 +230,7 @@ export default function InvokeDrawer({
           </span>
         </div>
 
-        <p className="text-[10px] leading-4 text-muted">{mode.note}</p>
+        <p className="text-[12px] leading-4 text-muted">{mode.note}</p>
 
         <ArgsEditor
           text={text}
@@ -263,16 +263,16 @@ export default function InvokeDrawer({
             Reset
           </Button>
         </div>
-        <p className="text-[9px] leading-4 text-faint">
+        <p className="text-[11px] leading-4 text-faint">
           {runShortcutHint()} runs {'\u00b7'} blank arguments send {'{}'}
         </p>
 
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-2">
-            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted">
+            <span className="text-[12px] font-medium uppercase tracking-[0.12em] text-muted">
               Trace output
             </span>
-            <span className="truncate font-mono text-[9px] text-faint" title={route}>
+            <span className="truncate font-mono text-[11px] text-faint" title={route}>
               {route}
             </span>
           </div>
@@ -285,7 +285,7 @@ export default function InvokeDrawer({
           />
         </div>
 
-        <div className="border-t border-line/70 pt-2 text-[9px] leading-4 text-faint">
+        <div className="border-t border-line/70 pt-2 text-[11px] leading-4 text-faint">
           {scope.invokeMode === 'node'
             ? "Live runs execute source on this machine through the scope's Node runner."
             : scope.invokeMode === 'simulate'

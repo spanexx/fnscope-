@@ -70,13 +70,13 @@ export default function ViewSwitcher({ view, onChange }: ViewSwitcherProps) {
                     onChange(id);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                  className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                     selected ? 'bg-active text-ink' : 'text-muted hover:bg-raised hover:text-ink'
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                   <span className="flex-1">{label}</span>
-                  <kbd className="font-mono text-[9px] text-faint">{index + 1}</kbd>
+                  <kbd className="font-mono text-[11px] text-faint">{index + 1}</kbd>
                 </button>
               );
             })}
@@ -99,7 +99,7 @@ export default function ViewSwitcher({ view, onChange }: ViewSwitcherProps) {
               aria-pressed={selected}
               aria-label={`${label} view`}
               title={`${label} view (${index + 1})`}
-              className={`flex items-center gap-1.5 rounded px-2 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+              className={`flex items-center gap-1.5 rounded px-2 py-1 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                 selected ? 'bg-active text-ink shadow-sm' : 'text-muted hover:text-ink'
               }`}
             >

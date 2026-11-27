@@ -19,8 +19,8 @@ export function InlineEmpty({ title, detail }: { title: string; detail: string }
     <div className="flex items-start gap-2 rounded-lg border border-dashed border-line-strong bg-surface px-3 py-2.5">
       <CircleSlash className="mt-0.5 h-3.5 w-3.5 shrink-0 text-faint" aria-hidden="true" />
       <div>
-        <p className="text-[11px] text-muted">{title}</p>
-        <p className="mt-0.5 text-[10px] leading-4 text-faint">{detail}</p>
+        <p className="text-[13px] text-muted">{title}</p>
+        <p className="mt-0.5 text-[12px] leading-4 text-faint">{detail}</p>
       </div>
     </div>
   );
@@ -44,11 +44,16 @@ export function CallerCard({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="font-mono text-[11.5px] text-ink">{caller.name}()</span>
-          <span className="truncate font-mono text-[9.5px] text-muted">{caller.module}</span>
+          <span
+            className="max-w-full truncate font-mono text-[13.5px] text-ink"
+            title={`${caller.name}()`}
+          >
+            {caller.name}()
+          </span>
+          <span className="truncate font-mono text-[11.5px] text-muted">{caller.module}</span>
         </div>
         {caller.callSite ? (
-          <pre className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10px] text-muted">
+          <pre className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] text-muted">
             {caller.callSite}
           </pre>
         ) : null}
@@ -57,13 +62,13 @@ export function CallerCard({
         <button
           type="button"
           onClick={() => onCaller(target.id)}
-          className="inline-flex shrink-0 items-center gap-1 rounded border border-info/25 bg-info/10 px-1.5 py-1 font-mono text-[9.5px] text-info transition-colors hover:bg-info/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="inline-flex shrink-0 items-center gap-1 rounded border border-info/25 bg-info/10 px-1.5 py-1 font-mono text-[11.5px] text-info transition-colors hover:bg-info/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
         >
           Jump
           <ArrowUp className="h-2.5 w-2.5" aria-hidden="true" />
         </button>
       ) : (
-        <span className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 font-mono text-[9px] text-faint">
+        <span className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-faint">
           {caller.fnId ? 'outside scope' : 'external'}
         </span>
       )}
@@ -86,8 +91,8 @@ export function TriggeredBySection({
     <details open className="group rounded-xl border border-line bg-panel">
       <summary className="flex cursor-pointer select-none items-center gap-2 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50">
         <ArrowDownLeft className="h-4 w-4 text-info" aria-hidden="true" />
-        <span className="text-[12px] font-medium text-ink">Triggered by</span>
-        <span className="font-mono text-[10px] text-muted">{callers.length}</span>
+        <span className="text-[14px] font-medium text-ink">Triggered by</span>
+        <span className="font-mono text-[12px] text-muted">{callers.length}</span>
         <ChevronDown
           className="ml-auto h-3.5 w-3.5 text-muted transition-transform group-open:rotate-180"
           aria-hidden="true"
@@ -118,8 +123,8 @@ export function InputsSection({ fn }: { fn: FnRecord }) {
     <section className="rounded-xl border border-line bg-panel p-4">
       <div className="mb-3 flex items-center gap-2">
         <ArrowRightLeft className="h-4 w-4 text-muted" aria-hidden="true" />
-        <span className="text-[12px] font-medium text-ink">Inputs</span>
-        <span className="font-mono text-[10px] text-muted">{params.length}</span>
+        <span className="text-[14px] font-medium text-ink">Inputs</span>
+        <span className="font-mono text-[12px] text-muted">{params.length}</span>
       </div>
       {params.length === 0 ? (
         <InlineEmpty
@@ -133,10 +138,10 @@ export function InputsSection({ fn }: { fn: FnRecord }) {
             return (
               <div key={`${param.name}-${i}`} className="rounded-lg border border-line bg-surface px-3 py-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-mono text-[11.5px] text-ink">{paramLabel(param)}</span>
+                  <span className="truncate font-mono text-[13.5px] text-ink">{paramLabel(param)}</span>
                   <Badge tone="info">{param.type}</Badge>
                 </div>
-                <div className="mt-1 flex items-center gap-2 text-[9.5px] text-muted">
+                <div className="mt-1 flex items-center gap-2 text-[11.5px] text-muted">
                   <span className={param.required ? 'text-err/80' : 'text-muted'}>
                     {param.required ? 'required' : 'optional'}
                   </span>
@@ -148,7 +153,7 @@ export function InputsSection({ fn }: { fn: FnRecord }) {
                   ) : null}
                 </div>
                 {param.description ? (
-                  <p className="mt-1 text-[10px] leading-4 text-muted">{param.description}</p>
+                  <p className="mt-1 text-[12px] leading-4 text-muted">{param.description}</p>
                 ) : null}
               </div>
             );
@@ -169,9 +174,9 @@ export function OutputsSection({ fn }: { fn: FnRecord }) {
       <section className="rounded-xl border border-line bg-panel p-4">
         <div className="mb-2 flex items-center gap-2">
           <CornerDownRight className="h-4 w-4 text-ok" aria-hidden="true" />
-          <span className="text-[12px] font-medium text-ink">Returns</span>
+          <span className="text-[14px] font-medium text-ink">Returns</span>
         </div>
-        <div className="rounded border border-ok/20 bg-ok/[0.06] px-2 py-1.5 font-mono text-[10.5px] text-ok">
+        <div className="rounded border border-ok/20 bg-ok/[0.06] px-2 py-1.5 font-mono text-[12.5px] text-ok">
           {ret.type || 'unknown'}
         </div>
         {fields.length ? (
@@ -181,8 +186,8 @@ export function OutputsSection({ fn }: { fn: FnRecord }) {
                 key={`${field.name}-${i}`}
                 className="flex items-center justify-between gap-2 rounded border border-line bg-surface px-2 py-1"
               >
-                <span className="font-mono text-[10px] text-ink">{field.name}</span>
-                <span className="font-mono text-[9px] text-info">{field.type}</span>
+                <span className="font-mono text-[12px] text-ink">{field.name}</span>
+                <span className="font-mono text-[11px] text-info">{field.type}</span>
               </div>
             ))}
           </div>
@@ -191,16 +196,16 @@ export function OutputsSection({ fn }: { fn: FnRecord }) {
       <section className="rounded-xl border border-line bg-panel p-4">
         <div className="mb-2 flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-err" aria-hidden="true" />
-          <span className="text-[12px] font-medium text-ink">Declared errors</span>
+          <span className="text-[14px] font-medium text-ink">Declared errors</span>
         </div>
         {errors.length ? (
           errors.map((error, i) => (
             <div key={`${error.code}-${i}`} className="mt-1 rounded border border-err/20 bg-err/[0.04] px-2 py-1.5">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[10px] text-err">{error.code}</span>
+                <span className="font-mono text-[12px] text-err">{error.code}</span>
                 {error.status ? <Badge tone="err">{error.status}</Badge> : null}
               </div>
-              <p className="mt-0.5 text-[9.5px] leading-4 text-muted">{error.when}</p>
+              <p className="mt-0.5 text-[11.5px] leading-4 text-muted">{error.when}</p>
             </div>
           ))
         ) : (

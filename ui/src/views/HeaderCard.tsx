@@ -41,13 +41,13 @@ export default function HeaderCard({ fn, onInvoke }: HeaderCardProps) {
           <Badge tone={pure ? 'ok' : 'warn'}>{pure ? 'pure' : 'side-effect'}</Badge>
           {entry ? <Badge tone="accent">entry point</Badge> : null}
         </div>
-        <h1 className="mt-3 break-words font-mono text-[17px] leading-7 text-ink lg:text-[19px]">
+        <h1 className="mt-3 break-words font-mono text-[19px] leading-7 text-ink lg:text-[22px]">
           {signature(fn)}
         </h1>
-        <p className="mt-2 max-w-[78ch] text-[12.5px] leading-6 text-muted">
+        <p className="mt-2 max-w-[78ch] text-[15px] leading-6 text-muted">
           {fn.description || 'No description in the manifest.'}
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 font-mono text-[10.5px] text-muted">
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 font-mono text-[12.5px] text-muted">
           <span className="inline-flex items-center gap-1">
             <FileCode className="h-3 w-3" aria-hidden="true" />
             {fn.filePath}:{fn.line}

@@ -90,10 +90,10 @@ export default function ModuleTree({ graph, selectedId, onSelect }: ModuleTreePr
                 <ChevronRight className="h-3 w-3 shrink-0 text-muted" aria-hidden="true" />
               )}
               <Folder className="h-3.5 w-3.5 shrink-0 text-warn/70" aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink">
+              <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-ink">
                 {group.label}
               </span>
-              <span className="rounded bg-raised px-1.5 py-0.5 font-mono text-[9px] text-muted">
+              <span className="rounded bg-raised px-1.5 py-0.5 font-mono text-[11px] text-muted">
                 {formatCount(group.functionCount)}
               </span>
             </button>
@@ -122,10 +122,10 @@ export default function ModuleTree({ graph, selectedId, onSelect }: ModuleTreePr
                           />
                         )}
                         <FileCode className="h-3 w-3 shrink-0 text-info/60" aria-hidden="true" />
-                        <span className="min-w-0 flex-1 truncate font-mono text-[10.5px] text-muted">
+                        <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] text-muted">
                           {file.label}
                         </span>
-                        <span className="font-mono text-[9px] text-faint">
+                        <span className="font-mono text-[11px] text-faint">
                           {formatCount(file.functionCount)}
                         </span>
                       </button>

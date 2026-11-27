@@ -19,7 +19,7 @@ export default function BreadcrumbBar({ trail, onSelect }: BreadcrumbBarProps) {
       className="no-scrollbar flex min-w-0 items-center gap-0.5 overflow-x-auto"
     >
       {trail.length === 0 ? (
-        <span className="whitespace-nowrap px-1.5 py-1 font-mono text-[10.5px] text-faint">
+        <span className="whitespace-nowrap px-1.5 py-1 font-mono text-[12.5px] text-faint">
           No function selected
         </span>
       ) : (
@@ -35,7 +35,7 @@ export default function BreadcrumbBar({ trail, onSelect }: BreadcrumbBarProps) {
                 onClick={() => onSelect?.(index)}
                 aria-current={current ? 'page' : undefined}
                 title={crumb.label}
-                className={`max-w-[150px] truncate rounded border px-1.5 py-1 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
+                className={`max-w-[150px] truncate rounded border px-1.5 py-1 font-mono text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 ${
                   current
                     ? 'border-accent/25 bg-accent/10 text-accent'
                     : 'border-transparent text-muted hover:bg-wash hover:text-ink'

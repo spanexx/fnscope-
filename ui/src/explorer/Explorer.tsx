@@ -68,11 +68,11 @@ export default function Explorer({
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-line/70 p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="font-mono text-[9px] font-medium uppercase tracking-[0.16em] text-faint">
+          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-faint">
             Explorer
           </span>
           <span
-            className="max-w-[150px] truncate font-mono text-[9.5px] text-faint"
+            className="max-w-[150px] truncate font-mono text-[11.5px] text-faint"
             title={scope?.label}
           >
             {scope ? scope.id : 'no scope'}
@@ -110,7 +110,7 @@ export default function Explorer({
         </div>
       </div>
 
-      <div className="border-b border-line/60 px-3 py-2 text-[10px] text-muted">
+      <div className="border-b border-line/60 px-3 py-2 text-[12px] text-muted">
         {summary
           ? `${formatCount(summary.functionCount)} functions \u00b7 ${formatCount(
               summary.fileCount
@@ -161,10 +161,10 @@ export default function Explorer({
         ) : matchResult ? (
           <div role="group" aria-label="Search results">
             <div className="flex items-center justify-between px-3 pb-1 pt-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+              <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">
                 Search
               </span>
-              <span className="font-mono text-[9.5px] text-faint">
+              <span className="font-mono text-[11.5px] text-faint">
                 {formatCount(matchResult.total)} match{matchResult.total === 1 ? '' : 'es'}
               </span>
             </div>
@@ -178,7 +178,7 @@ export default function Explorer({
               />
             ))}
             {matchResult.total > matchResult.matches.length ? (
-              <p className="px-3 py-2 text-[10px] leading-4 text-faint">
+              <p className="px-3 py-2 text-[12px] leading-4 text-faint">
                 Showing {formatCount(matchResult.matches.length)} of{' '}
                 {formatCount(matchResult.total)}. Narrow the filter to see more.
               </p>
@@ -206,10 +206,10 @@ export default function Explorer({
       </div>
 
       <div className="border-t border-line/70 p-2.5">
-        <p className="truncate text-[9.5px] leading-4 text-faint">
+        <p className="truncate text-[11.5px] leading-4 text-faint">
           {scope ? scope.rootDir || scope.label : 'No manifest root'}
         </p>
-        <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-faint">
+        <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
           local manifest only / no sample graph
         </p>
       </div>
@@ -233,7 +233,7 @@ function ModeButton({ active, disabled, onClick, icon, children }: ModeButtonPro
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-1 rounded px-1.5 py-1 text-[10px] transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`flex flex-1 items-center justify-center gap-1 rounded px-1.5 py-1 text-[12px] transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 ${
         active ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink'
       }`}
     >

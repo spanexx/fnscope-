@@ -42,11 +42,11 @@ export default function ArgsEditor({
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <label
           htmlFor={fieldId}
-          className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted"
+          className="text-[12px] font-medium uppercase tracking-[0.12em] text-muted"
         >
           Arguments
         </label>
-        <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-faint">
+        <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-faint">
           JSON object
         </span>
       </div>
@@ -60,21 +60,21 @@ export default function ArgsEditor({
         autoComplete="off"
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : summaryId}
-        className={`h-[150px] w-full resize-y rounded-md border bg-bg p-2.5 font-mono text-[10.5px] leading-5 text-ink placeholder:text-faint focus:outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-60 ${
+        className={`h-[150px] w-full resize-y rounded-md border bg-bg p-2.5 font-mono text-[12.5px] leading-5 text-ink placeholder:text-faint focus:outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-60 ${
           error
             ? 'border-err/50 focus:border-err/60 focus:ring-err/20'
             : 'border-line focus:border-accent/50 focus:ring-accent/30'
         }`}
       />
       {error ? (
-        <p id={errorId} role="alert" className="mt-1 text-[10px] leading-4 text-err">
+        <p id={errorId} role="alert" className="mt-1 text-[12px] leading-4 text-err">
           {error.message}
         </p>
       ) : (
         <p
           id={summaryId}
           title={summary}
-          className="mt-1 truncate font-mono text-[9px] leading-4 text-faint"
+          className="mt-1 truncate font-mono text-[11px] leading-4 text-faint"
         >
           {summary}
         </p>

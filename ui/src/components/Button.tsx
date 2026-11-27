@@ -13,8 +13,8 @@ const VARIANTS = {
 };
 
 const SIZES = {
-  sm: 'h-8 px-2.5 text-[11px]',
-  md: 'h-10 px-3 text-[12px]',
+  sm: 'h-8 px-2.5 text-[13px]',
+  md: 'h-10 px-3 text-[14px]',
 };
 
 /** Shared button; callers own the action, the primitive owns focus and contrast. */

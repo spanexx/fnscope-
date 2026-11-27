@@ -53,10 +53,10 @@ and re-measured (drawer button right edge 367 px).
 
 ## Screenshots
 
-- `.reports/ui-workspace-audit/cdp-375x667.png` — mobile Story, open drawer disabled state, compact view control.
+- `.reports/ui-workspace-audit/cdp-375x667.png` — mobile Story, compact view control, no horizontal overflow.
 - `.reports/ui-workspace-audit/cdp-768x1024.png` — tablet with breadcrumb and view tabs.
 - `.reports/ui-workspace-audit/cdp-1440x900.png` — desktop, Paper, docked sidebar and drawer.
-- `.reports/ui-workspace-audit/graphite-beta-1440.jpeg` — Graphite palette after switching to Beta.
+- `.reports/ui-workspace-audit/graphite-beta-1440.png` — Graphite palette after switching to Beta.
 
 ## Fixes made because of this audit
 
@@ -69,6 +69,15 @@ and re-measured (drawer button right edge 367 px).
    and `shared_call_edge_stays_inside_its_scope` proves the resolved edge stays inside its scope.
 4. Mobile had no way to change views. A compact icon menu now exposes all four views below 640 px.
 5. The 375 px header overflowed by one pixel; the mobile gap/padding was tightened.
+6. **Post-audit typography feedback.** The 8–12 px labels were the smallest thing on
+   screen at 100% zoom. The scale was raised once, globally: 8–9 px → 10–11,
+   9.5–10 → 11.5–12, 11–12 → 13–14, 13–14 → 15–16, headings 16–19 → 18–22
+   (173 class replacements across 25 files). At 375 px the wordmark now hides
+   below 480 px, the search placeholder is shortened to `Filter functions…`, and
+   long caller names truncate instead of overlapping the Jump button. Re-measured
+   at 375/768/1016/1440: document width equals the viewport, every header control
+   is inside it, and the story card stays inside the canvas. The screenshots above
+   were recaptured after the change.
 
 ## Known limitations (recorded, not hidden)
 

@@ -54,12 +54,12 @@ export function FunctionRow({
       />
       <span className="min-w-0 flex-1">
         <span
-          className={`block truncate font-mono text-[12px] ${selected ? 'text-accent' : 'text-ink'}`}
+          className={`block truncate font-mono text-[14px] ${selected ? 'text-accent' : 'text-ink'}`}
         >
           <HighlightedName name={fn.name} query={query} />
           <span className="text-faint">()</span>
         </span>
-        <span className="mt-0.5 block truncate text-[10px] text-muted">{subtitle}</span>
+        <span className="mt-0.5 block truncate text-[12px] text-muted">{subtitle}</span>
       </span>
       <span className="mt-1 flex shrink-0 items-center gap-1">
         {hasErrors ? (
@@ -118,12 +118,12 @@ export default function FunctionList({
   return (
     <div>
       <div className="flex items-center justify-between px-3 pb-1 pt-2">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">
           Entry points
         </span>
-        <span className="font-mono text-[9.5px] text-faint">{formatCount(total)}</span>
+        <span className="font-mono text-[11.5px] text-faint">{formatCount(total)}</span>
       </div>
-      <p className="px-3 pb-2 text-[10px] leading-4 text-faint">
+      <p className="px-3 pb-2 text-[12px] leading-4 text-faint">
         Zero-caller functions, ranked by step count
       </p>
 
@@ -149,7 +149,7 @@ export default function FunctionList({
 
       {hidden > 0 ? (
         <div className="border-t border-line/60 px-3 py-2">
-          <p className="pb-1.5 text-[9.5px] leading-4 text-faint">
+          <p className="pb-1.5 text-[11.5px] leading-4 text-faint">
             {showAll
               ? `Showing all ${formatCount(total)} candidates.`
               : `${formatCount(hidden)} more zero-caller functions are searchable but not listed.`}
