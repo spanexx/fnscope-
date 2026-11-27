@@ -43,7 +43,7 @@ export default function ProvenanceStrip({
         <>
           <span className="hidden h-3 w-px shrink-0 bg-line sm:block" />
           <span className="shrink-0">
-            {formatCount(summary.functionCount)} fns \u00b7 {formatCount(summary.fileCount)} files
+            {formatCount(summary.functionCount)} fns {'\u00b7'} {formatCount(summary.fileCount)} files
           </span>
         </>
       ) : null}

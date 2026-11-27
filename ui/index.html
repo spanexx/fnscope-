@@ -9,17 +9,7 @@
       content="fnscope workspace: a local-first function inspector with isolated project scopes."
     />
     <title>fnscope workspace</title>
-    <script>
-      // Apply the persisted palette before first paint; Paper remains the default.
-      try {
-        var saved = window.localStorage.getItem('fnscope-workspace-theme');
-        if (saved === 'paper' || saved === 'graphite') {
-          document.documentElement.setAttribute('data-theme', saved);
-        }
-      } catch (error) {
-        // Blocked storage keeps the server-rendered Paper default.
-      }
-    </script>
+    <script src="/theme.js"></script>
     <link rel="stylesheet" href="/app.css" />
   </head>
   <body>

@@ -301,6 +301,13 @@ mark {
   animation: toast-in 0.18s ease-out;
 }
 
+@media (max-width: 639px) {
+  .ws-topbar {
+    gap: 0.375rem;
+    padding: 0 0.5rem;
+  }
+}
+
 @media (max-width: 1179px) {
   .ws-drawer {
     position: fixed;

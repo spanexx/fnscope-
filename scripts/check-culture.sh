@@ -254,7 +254,7 @@ check_contract_symbols() {
 check_ui_assets() {
   local -a missing=()
   local f
-  for f in ui/dist/index.html ui/dist/app.js ui/dist/app.css; do
+  for f in ui/dist/index.html ui/dist/theme.js ui/dist/app.js ui/dist/app.css; do
     [[ -s "$f" ]] || missing+=("$f")
   done
   if (( ${#missing[@]} > 0 )); then
@@ -262,12 +262,13 @@ check_ui_assets() {
     return
   fi
   if ! grep -qF 'include_str!("../../../ui/dist/index.html")' crates/fnscope-server/src/lib.rs ||
+     ! grep -qF 'include_str!("../../../ui/dist/theme.js")' crates/fnscope-server/src/lib.rs ||
      ! grep -qF 'include_str!("../../../ui/dist/app.js")' crates/fnscope-server/src/lib.rs ||
      ! grep -qF 'include_str!("../../../ui/dist/app.css")' crates/fnscope-server/src/lib.rs; then
-    record_fail "UI_ASSET: server does not embed all three ui/dist assets"
+    record_fail "UI_ASSET: server does not embed all four ui/dist assets"
     return
   fi
-  record_pass "UI_ASSET: three embedded assets present and referenced"
+  record_pass "UI_ASSET: four embedded assets present and referenced"
 }
 
 check_scratch_files() {

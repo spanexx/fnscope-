@@ -21,6 +21,8 @@ fi
 
 # Keep the served HTML in sync with the source template.
 cp index.html dist/index.html
+# Pre-paint palette bootstrap; external so the strict CSP needs no inline hash.
+cp src/theme.js dist/theme.js
 
 # Tailwind scans src/**/*.{ts,tsx} and emits a minified stylesheet containing
 # only the utility classes the explorer actually uses.
@@ -37,4 +39,4 @@ cp index.html dist/index.html
   --outfile=dist/app.js
 
 # Report exact sizes so CI (and the orchestrator) can assert real bundles.
-wc -c dist/index.html dist/app.js dist/app.css
+wc -c dist/index.html dist/theme.js dist/app.js dist/app.css

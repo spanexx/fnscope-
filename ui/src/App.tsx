@@ -71,6 +71,7 @@ function WorkspaceApp() {
     typeof window === 'undefined' ? false : window.innerWidth >= 1280
   );
   const [focusSearchRequested, setFocusSearchRequested] = useState(false);
+  const [runSignal, setRunSignal] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const graphRequest = useRef(0);
 
@@ -276,6 +277,18 @@ function WorkspaceApp() {
     setDrawerOpen(true);
   }, [selectedFn, push]);
 
+  const requestRun = useCallback(() => {
+    if (!selectedFn) {
+      push('Select a function in the explorer, then run it here.', 'info');
+      return;
+    }
+    if (!drawerOpen) {
+      setDrawerOpen(true);
+      return;
+    }
+    setRunSignal((signal) => signal + 1);
+  }, [selectedFn, drawerOpen, push]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -290,7 +303,7 @@ function WorkspaceApp() {
 
       if (command && event.key === 'Enter') {
         event.preventDefault();
-        openInvoke();
+        requestRun();
         return;
       }
 
@@ -334,7 +347,7 @@ function WorkspaceApp() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [drawerOpen, sidebarOpen, narrowSidebar, focusSearch, openInvoke, goBack]);
+  }, [drawerOpen, sidebarOpen, narrowSidebar, focusSearch, requestRun, goBack]);
 
   const selectScope = useCallback(
     (nextId: string) => {
@@ -418,6 +431,7 @@ function WorkspaceApp() {
             scope={scope}
             fn={selectedFn}
             compatibility={compatibility}
+            runSignal={runSignal}
             onClose={() => setDrawerOpen(false)}
           />
         ) : (

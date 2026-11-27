@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlaskConical, Loader2, Play, RotateCcw, SquareTerminal, X, Zap } from 'lucide-react';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
@@ -17,6 +17,8 @@ export interface InvokeDrawerProps {
   onClose: () => void;
   /** True when the legacy single-scope API is serving, which has its own route. */
   compatibility?: boolean;
+  /** Increment from the shell to run with the current arguments (Ctrl/Cmd+Enter). */
+  runSignal?: number;
 }
 
 type ModeTone = 'neutral' | 'ok' | 'warn';
@@ -70,6 +72,7 @@ export default function InvokeDrawer({
   fn,
   onClose,
   compatibility = false,
+  runSignal,
 }: InvokeDrawerProps) {
   const legacy = compatibility || Boolean(scope.compatibility);
   const mode = modeView(scope, legacy);
@@ -120,6 +123,15 @@ export default function InvokeDrawer({
     },
     [handleRun]
   );
+
+  // The shell can request a run while focus sits outside the drawer; ignore the
+  // initial mount value so opening the drawer never fires a request by itself.
+  const lastRunSignal = useRef(runSignal);
+  useEffect(() => {
+    if (runSignal === undefined || runSignal === lastRunSignal.current) return;
+    lastRunSignal.current = runSignal;
+    void handleRun();
+  }, [runSignal, handleRun]);
 
   const runDisabled = running || !scope.available;
   const runTitle = !scope.available

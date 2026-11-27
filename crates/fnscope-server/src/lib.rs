@@ -40,6 +40,8 @@ const CONTENT_SECURITY_POLICY: &str = "default-src 'self'; script-src 'self'; \
 
 /// Explorer shell embedded at build time; the UI job replaces the placeholder file.
 pub const INDEX_HTML: &str = include_str!("../../../ui/dist/index.html");
+/// Pre-paint palette bootstrap; external so the CSP can stay inline-free.
+pub const THEME_JS: &str = include_str!("../../../ui/dist/theme.js");
 /// Bundled application script embedded at build time.
 pub const APP_JS: &str = include_str!("../../../ui/dist/app.js");
 /// Compiled stylesheet embedded at build time.
@@ -99,6 +101,7 @@ pub fn router(config: ServerConfig) -> Router {
 pub(crate) fn build_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(index))
+        .route("/theme.js", get(theme_js))
         .route("/app.js", get(app_js))
         .route("/app.css", get(app_css))
         .route("/api/health", get(health))
@@ -213,6 +216,11 @@ async fn index() -> Response {
 /// Serves the embedded JavaScript bundle as JavaScript.
 async fn app_js() -> Response {
     asset(APP_JS, "text/javascript")
+}
+
+/// Serves the pre-paint palette bootstrap as JavaScript.
+async fn theme_js() -> Response {
+    asset(THEME_JS, "text/javascript")
 }
 
 /// Serves the embedded stylesheet as CSS.
@@ -936,7 +944,7 @@ mod tests {
             "unexpected content type: {content_type}"
         );
         let body = body_text(response).await;
-        for needle in ["<div id=\"root\">", "/app.js", "/app.css"] {
+        for needle in ["<div id=\"root\">", "/theme.js", "/app.js", "/app.css"] {
             assert!(body.contains(needle), "index must contain {needle}");
         }
     }
@@ -944,6 +952,7 @@ mod tests {
     #[tokio::test]
     async fn asset_routes_serve_embedded_constants() {
         for (uri, expected, expected_type) in [
+            ("/theme.js", THEME_JS, "text/javascript"),
             ("/app.js", APP_JS, "text/javascript"),
             ("/app.css", APP_CSS, "text/css"),
         ] {

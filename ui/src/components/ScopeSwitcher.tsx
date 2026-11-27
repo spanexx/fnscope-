@@ -106,7 +106,7 @@ export default function ScopeSwitcher({
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-1">
                     <span className="font-mono text-[9px] text-faint">
-                      {formatCount(scope.functionCount)} fns \u00b7 {formatCount(scope.fileCount)} files
+                      {formatCount(scope.functionCount)} fns {'\u00b7'} {formatCount(scope.fileCount)} files
                     </span>
                     {scope.languages.slice(0, 4).map((language) => (
                       <span
